@@ -899,11 +899,22 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.init();
             }
 
-            init() {
+            async init() {
                 this.loadSettings();
-                this.initData();
+                await this.initData();
                 this.updateUI();
                 this.setupEventListeners();
+                
+                // 强制刷新检查 - 如果URL包含refresh参数，强制重新加载词库
+                if (window.location.search.includes('refresh=1')) {
+                    console.log('强制刷新模式：重新加载词库');
+                    localStorage.removeItem('cet4_words');
+                    localStorage.removeItem('cet4_version');
+                    await this.initData();
+                    this.updateUI();
+                    // 清除URL参数
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             }
 
             // 从 localStorage 加载设置
@@ -928,10 +939,31 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             }
 
             // 初始化数据
-            initData() {
-                // 初始化四级词库
-                if (!localStorage.getItem('cet4_words')) {
-                    localStorage.setItem('cet4_words', JSON.stringify(DEFAULT_CET4_WORDS));
+            async initData() {
+                // 词库版本号，更新词库时修改此版本号
+                const CET4_VERSION = 'v2';
+                const savedVersion = localStorage.getItem('cet4_version');
+                
+                // 初始化四级词库 - 从外部JSON文件加载
+                // 如果没有数据或版本号不匹配，则重新加载
+                if (!localStorage.getItem('cet4_words') || savedVersion !== CET4_VERSION) {
+                    try {
+                        const response = await fetch('cet4_words.json');
+                        if (response.ok) {
+                            const words = await response.json();
+                            localStorage.setItem('cet4_words', JSON.stringify(words));
+                            localStorage.setItem('cet4_version', CET4_VERSION);
+                            console.log(`成功加载 ${words.length} 个四级单词`);
+                        } else {
+                            // 如果加载失败，使用默认数据
+                            localStorage.setItem('cet4_words', JSON.stringify(DEFAULT_CET4_WORDS));
+                            localStorage.setItem('cet4_version', CET4_VERSION);
+                        }
+                    } catch (e) {
+                        console.error('加载四级词库失败:', e);
+                        localStorage.setItem('cet4_words', JSON.stringify(DEFAULT_CET4_WORDS));
+                        localStorage.setItem('cet4_version', CET4_VERSION);
+                    }
                 }
                 // 初始化六级词库
                 if (!localStorage.getItem('cet6_words')) {
