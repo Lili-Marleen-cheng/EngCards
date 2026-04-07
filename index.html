@@ -5,1587 +5,512 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>背单词</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f5;
-            --bg-card: #f5f5f5;
-            --text-primary: #1a1a1a;
-            --text-secondary: #666666;
-            --border-color: #e0e0e0;
-            --accent-color: #1a1a1a;
-            --success-color: #4caf50;
-            --error-color: #f44336;
-            --warning-color: #ff9800;
-        }
-
-        [data-theme="dark"] {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
-            --bg-card: #2d2d2d;
-            --text-primary: #ffffff;
-            --text-secondary: #b0b0b0;
-            --border-color: #404040;
-            --accent-color: #ffffff;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .app-container {
-            max-width: 600px;
-            margin: 0 auto;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 页面切换 */
-        .page {
-            display: none;
-            flex: 1;
-            padding: 20px;
-            padding-bottom: 80px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 标题 */
-        .page-title {
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        /* 统计卡片 */
-        .stats-container {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card {
-            flex: 1;
-            background-color: var(--bg-card);
-            border-radius: 12px;
-            padding: 16px 8px;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        /* 按钮 */
-        .btn {
-            padding: 14px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-color);
-            color: var(--bg-primary);
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-card);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--border-color);
-        }
-
-        .btn-danger {
-            background-color: var(--error-color);
-            color: white;
-        }
-
-        .btn-block {
-            width: 100%;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .btn-group .btn {
-            flex: 1;
-        }
-
-        /* 卡片 */
-        .card {
-            background-color: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border-color);
-        }
-
-        /* 设置项 */
-        .setting-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 0;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .setting-item:last-child {
-            border-bottom: none;
-        }
-
-        .setting-label {
-            font-size: 16px;
-        }
-
-        /* 开关 */
-        .switch {
-            position: relative;
-            width: 50px;
-            height: 28px;
-            background-color: #ccc;
-            border-radius: 14px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .switch.active {
-            background-color: var(--accent-color);
-        }
-
-        .switch::after {
-            content: '';
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background-color: white;
-            border-radius: 50%;
-            top: 2px;
-            left: 2px;
-            transition: transform 0.3s;
-        }
-
-        .switch.active::after {
-            transform: translateX(22px);
-        }
-
-        /* 底部导航 */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 0;
-            z-index: 100;
-        }
-
-        .nav-item {
-            flex: 1;
-            text-align: center;
-            padding: 8px;
-            cursor: pointer;
-            color: var(--text-secondary);
-            transition: color 0.2s;
-        }
-
-        .nav-item.active {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .nav-icon {
-            font-size: 20px;
-            margin-bottom: 2px;
-        }
-
-        .nav-label {
-            font-size: 12px;
-        }
-
-        /* 单词卡片页 */
-        .word-card {
-            background-color: var(--bg-card);
-            border-radius: 16px;
-            padding: 32px 24px;
-            text-align: center;
-            margin-bottom: 20px;
-            border: 1px solid var(--border-color);
-            min-height: 300px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .word-text {
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 16px;
-            word-break: break-all;
-        }
-
-        .phonetic-container {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .phonetic-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-secondary);
-        }
-
-        .phonetic-text {
-            font-family: "Times New Roman", serif;
-            font-size: 16px;
-        }
-
-        .sound-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: 1px solid var(--border-color);
-            background-color: transparent;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--text-primary);
-        }
-
-        .meaning-text {
-            font-size: 18px;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-            line-height: 1.6;
-        }
-
-        .example-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-            font-style: italic;
-            line-height: 1.5;
-        }
-
-        .example-label {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        /* 进度条 */
-        .progress-bar {
-            height: 4px;
-            background-color: var(--border-color);
-            border-radius: 2px;
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background-color: var(--accent-color);
-            transition: width 0.3s ease;
-        }
-
-        .progress-text {
-            text-align: center;
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-        }
-
-        /* 操作按钮 */
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-        }
-
-        .action-buttons .btn {
-            flex: 1;
-            padding: 16px;
-            font-size: 16px;
-        }
-
-        .btn-known {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-unknown {
-            background-color: var(--error-color);
-            color: white;
-        }
-
-        /* 表格 */
-        .word-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        .word-table th,
-        .word-table td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .word-table th {
-            font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 12px;
-            text-transform: uppercase;
-        }
-
-        .word-table tr:hover {
-            background-color: var(--bg-secondary);
-        }
-
-        .word-table .word-cell {
-            font-weight: 600;
-        }
-
-        .word-table .phonetic-cell {
-            color: var(--text-secondary);
-            font-family: "Times New Roman", serif;
-            font-size: 12px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .status-known {
-            background-color: rgba(76, 175, 80, 0.2);
-            color: var(--success-color);
-        }
-
-        .status-unknown {
-            background-color: rgba(244, 67, 54, 0.2);
-            color: var(--error-color);
-        }
-
-        .status-unlearned {
-            background-color: rgba(158, 158, 158, 0.2);
-            color: var(--text-secondary);
-        }
-
-        .learn-btn {
-            padding: 6px 12px;
-            font-size: 12px;
-            border-radius: 4px;
-            background-color: var(--accent-color);
-            color: var(--bg-primary);
-            border: none;
-            cursor: pointer;
-        }
-
-        /* 工具栏 */
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .back-btn {
-            background: none;
-            border: none;
-            font-size: 16px;
-            cursor: pointer;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .level-selector {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .level-btn {
-            padding: 8px 16px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-card);
-            color: var(--text-primary);
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .level-btn.active {
-            background-color: var(--accent-color);
-            color: var(--bg-primary);
-            border-color: var(--accent-color);
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: var(--text-secondary);
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
-        /* 模态框 */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 200;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background-color: var(--bg-primary);
-            border-radius: 16px;
-            padding: 24px;
-            width: 100%;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 16px;
-        }
-
-        .modal-body {
-            margin-bottom: 20px;
-        }
-
-        .modal-footer {
-            display: flex;
-            gap: 12px;
-        }
-
-        .modal-footer .btn {
-            flex: 1;
-        }
-
-        /* 文本域 */
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            resize: vertical;
-            min-height: 120px;
-            background-color: var(--bg-card);
-            color: var(--text-primary);
-            font-family: inherit;
-        }
-
-        /* 完成提示 */
-        .completion-message {
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .completion-message h2 {
-            margin-bottom: 16px;
-        }
-
-        .completion-message p {
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-        }
-
-        /* 滚动条样式 */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-secondary);
-        }
-
-        /* 响应式 */
-        @media (max-width: 480px) {
-            .page {
-                padding: 16px;
-                padding-bottom: 80px;
-            }
-
-            .word-text {
-                font-size: 28px;
-            }
-
-            .stat-number {
-                font-size: 24px;
-            }
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#fff;--bg2:#f5f5f5;--text:#1a1a1a;--text2:#666;--border:#e0e0e0;--accent:#1a1a1a;--ok:#4caf50;--no:#f44336}
+        [data-theme="dark"]{--bg:#1a1a1a;--bg2:#2d2d2d;--text:#fff;--text2:#b0b0b0;--border:#404040;--accent:#fff}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .app{max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+        .page{display:none;flex:1;padding:20px 20px 80px}
+        .page.active{display:block;animation:fade .3s ease}
+        @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        h1{text-align:center;font-size:24px;margin-bottom:24px}
+        .stats{display:flex;gap:12px;margin-bottom:24px}
+        .stat{flex:1;background:var(--bg2);border-radius:12px;padding:16px 8px;text-align:center;border:1px solid var(--border)}
+        .stat b{display:block;font-size:32px;margin-bottom:4px}
+        .stat span{font-size:12px;color:var(--text2)}
+        .btn{padding:14px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .2s}
+        .btn:hover{opacity:.9}
+        .btn-prim{background:var(--accent);color:var(--bg)}
+        .btn-sec{background:var(--bg2);color:var(--text);border:1px solid var(--border)}
+        .btn-block{width:100%}
+        .btn-group{display:flex;gap:12px;margin-bottom:16px}
+        .btn-group .btn{flex:1}
+        .card{background:var(--bg2);border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid var(--border)}
+        .setting{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border)}
+        .setting:last-child{border-bottom:none}
+        .switch{width:50px;height:28px;background:#ccc;border-radius:14px;cursor:pointer;position:relative;transition:.3s}
+        .switch.on{background:var(--accent)}
+        .switch::after{content:'';position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;top:2px;left:2px;transition:.3s}
+        .switch.on::after{transform:translateX(22px)}
+        .nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);display:flex;padding:8px 0}
+        .nav-item{flex:1;text-align:center;padding:8px;cursor:pointer;color:var(--text2);font-size:12px}
+        .nav-item.on{color:var(--text);font-weight:600}
+        .nav-item div:first-child{font-size:20px;margin-bottom:2px}
+        .word-card{background:var(--bg2);border-radius:16px;padding:32px 24px;text-align:center;margin-bottom:20px;border:1px solid var(--border);min-height:300px;display:flex;flex-direction:column;justify-content:center}
+        .word{font-size:36px;font-weight:bold;margin-bottom:16px}
+        .phonetic{display:flex;justify-content:center;gap:24px;margin-bottom:24px;flex-wrap:wrap;color:var(--text2)}
+        .phonetic span{font-family:"Times New Roman",serif}
+        .sound{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;cursor:pointer;margin-left:4px}
+        .meaning{font-size:18px;margin-bottom:16px;line-height:1.6}
+        .example{font-size:14px;color:var(--text2);font-style:italic}
+        .progress{height:4px;background:var(--border);border-radius:2px;margin-bottom:20px;overflow:hidden}
+        .progress-bar{height:100%;background:var(--accent);transition:width .3s}
+        .actions{display:flex;gap:12px}
+        .actions .btn{flex:1;padding:16px}
+        .btn-ok{background:var(--ok);color:#fff}
+        .btn-no{background:var(--no);color:#fff}
+        table{width:100%;border-collapse:collapse;font-size:14px}
+        th,td{padding:12px 8px;text-align:left;border-bottom:1px solid var(--border)}
+        th{color:var(--text2);font-size:12px;font-weight:600}
+        tr:hover{background:var(--bg2)}
+        .badge{display:inline-block;padding:4px 8px;border-radius:4px;font-size:12px;font-weight:600}
+        .badge-wait{background:rgba(158,158,158,.2);color:var(--text2)}
+        .badge-ok{background:rgba(76,175,80,.2);color:var(--ok)}
+        .badge-no{background:rgba(244,67,54,.2);color:var(--no)}
+        .level-btn{padding:8px 16px;border:1px solid var(--border);background:var(--bg2);border-radius:20px;cursor:pointer;font-size:14px}
+        .level-btn.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+        .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+        .back-btn{background:none;border:none;font-size:16px;cursor:pointer;color:var(--text)}
+        .empty{text-align:center;padding:48px 20px;color:var(--text2)}
+        .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+        .modal.on{display:flex}
+        .modal-content{background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto}
+        .modal h3{margin-bottom:16px}
+        .modal p{margin-bottom:20px;color:var(--text2)}
+        .modal-actions{display:flex;gap:12px}
+        .modal-actions .btn{flex:1}
+        textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;min-height:120px;background:var(--bg2);color:var(--text);font-family:inherit;margin-top:12px}
+        .completion{text-align:center;padding:40px 20px}
+        .completion h2{margin-bottom:16px}
+        .completion p{color:var(--text2);margin-bottom:24px}
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:var(--bg2)}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+        @media(max-width:480px){.page{padding:16px 16px 80px}.word{font-size:28px}}
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- 首页 -->
-        <div id="home-page" class="page active">
-            <h1 class="page-title">今日学习</h1>
-            
-            <div class="stats-container">
-                <div class="stat-card">
-                    <div class="stat-number" id="today-count">0</div>
-                    <div class="stat-label">今日已学</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="total-count">0</div>
-                    <div class="stat-label">总单词量</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="unrecognized-count">0</div>
-                    <div class="stat-label">不认识单词</div>
-                </div>
+    <div class="app">
+        <div id="home" class="page active">
+            <h1>今日学习</h1>
+            <div class="stats">
+                <div class="stat"><b id="today">0</b><span>今日已学</span></div>
+                <div class="stat"><b id="total">0</b><span>总单词量</span></div>
+                <div class="stat"><b id="unknown">0</b><span>不认识单词</span></div>
             </div>
-
             <div class="btn-group">
-                <button class="btn btn-primary" onclick="app.gotoCard()">Target</button>
-                <button class="btn btn-primary" onclick="app.gotoList()">List</button>
+                <button class="btn btn-prim" onclick="app.go('card')">Target</button>
+                <button class="btn btn-prim" onclick="app.go('list')">List</button>
             </div>
-
-            <button class="btn btn-secondary btn-block" onclick="app.showImportModal()">导入词库</button>
-
-            <div class="card" style="margin-top: 24px;">
-                <div class="setting-item">
-                    <span class="setting-label">夜间模式</span>
-                    <div class="switch" id="dark-mode-switch" onclick="app.toggleDarkMode()"></div>
-                </div>
+            <button class="btn btn-sec btn-block" onclick="app.showImport()">导入词库</button>
+            <div class="card" style="margin-top:24px">
+                <div class="setting"><span>夜间模式</span><div class="switch" id="dark-sw" onclick="app.toggleDark()"></div></div>
             </div>
-
             <div class="card">
-                <div class="setting-item" style="border-bottom: 1px solid var(--border-color); padding-top: 0;">
-                    <span class="setting-label">当前词库</span>
-                    <div class="level-selector" style="margin: 0;">
-                        <button class="level-btn" id="level-cet4" onclick="app.setLevel('cet4')">四级</button>
-                        <button class="level-btn" id="level-cet6" onclick="app.setLevel('cet6')">六级</button>
+                <div class="setting" style="border-bottom:1px solid var(--border);padding-top:0">
+                    <span>当前词库</span>
+                    <div>
+                        <button class="level-btn" id="lv-cet4" onclick="app.setLevel('cet4')">四级</button>
+                        <button class="level-btn" id="lv-cet6" onclick="app.setLevel('cet6')">六级</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 单词卡片页 -->
-        <div id="card-page" class="page">
+        <div id="card" class="page">
             <div class="toolbar">
-                <button class="back-btn" onclick="app.gotoHome()">← 返回</button>
+                <button class="back-btn" onclick="app.go('home')">← 返回</button>
                 <span id="card-progress">0 / 0</span>
             </div>
-
-            <div class="progress-bar">
-                <div class="progress-fill" id="card-progress-bar" style="width: 0%"></div>
-            </div>
-
-            <div id="word-card-content">
-                <div class="word-card" id="word-card">
-                    <div class="word-text" id="word-text">Word</div>
-                    <div class="phonetic-container">
-                        <div class="phonetic-item">
-                            <span>英</span>
-                            <span class="phonetic-text" id="phonetic-uk">/phonetic/</span>
-                            <button class="sound-btn" onclick="app.speak('uk')">🔊</button>
-                        </div>
-                        <div class="phonetic-item">
-                            <span>美</span>
-                            <span class="phonetic-text" id="phonetic-us">/phonetic/</span>
-                            <button class="sound-btn" onclick="app.speak('us')">🔊</button>
-                        </div>
+            <div class="progress"><div class="progress-bar" id="card-bar" style="width:0%"></div></div>
+            <div id="card-content">
+                <div class="word-card">
+                    <div class="word" id="w-word">Word</div>
+                    <div class="phonetic">
+                        <div>英 <span id="w-uk">/phonetic/</span><button class="sound" onclick="app.speak('uk')">🔊</button></div>
+                        <div>美 <span id="w-us">/phonetic/</span><button class="sound" onclick="app.speak('us')">🔊</button></div>
                     </div>
-                    <div class="meaning-text" id="meaning">Meaning</div>
-                    <div class="example-text">
-                        <div class="example-label">例句</div>
-                        <div id="example">Example sentence</div>
-                    </div>
+                    <div class="meaning" id="w-mean">Meaning</div>
+                    <div class="example"><div style="font-weight:600;margin-bottom:4px">例句</div><div id="w-ex">Example</div></div>
                 </div>
-
-                <div class="action-buttons">
-                    <button class="btn btn-unknown" onclick="app.markUnknown()">✗ 不认识</button>
-                    <button class="btn btn-known" onclick="app.markKnown()">✓ 认识</button>
+                <div class="actions">
+                    <button class="btn btn-no" onclick="app.mark(0)">✗ 不认识</button>
+                    <button class="btn btn-ok" onclick="app.mark(1)">✓ 认识</button>
                 </div>
             </div>
-
-            <div id="completion-message" class="completion-message" style="display: none;">
+            <div id="card-done" class="completion" style="display:none">
                 <h2>🎉 恭喜完成！</h2>
                 <p>本词库所有单词已学习完毕</p>
-                <button class="btn btn-primary btn-block" onclick="app.resetProgress()">重新开始</button>
-                <button class="btn btn-secondary btn-block" onclick="app.gotoHome()" style="margin-top: 12px;">返回首页</button>
+                <button class="btn btn-prim btn-block" onclick="app.reset()">重新开始</button>
+                <button class="btn btn-sec btn-block" onclick="app.go('home')" style="margin-top:12px">返回首页</button>
             </div>
         </div>
 
-        <!-- 单词列表页 -->
-        <div id="list-page" class="page">
+        <div id="list" class="page">
             <div class="toolbar">
-                <button class="back-btn" onclick="app.gotoHome()">← 返回</button>
-                <div class="level-selector" style="margin: 0;">
-                    <button class="level-btn" id="list-level-cet4" onclick="app.setListLevel('cet4')">四级</button>
-                    <button class="level-btn" id="list-level-cet6" onclick="app.setListLevel('cet6')">六级</button>
+                <button class="back-btn" onclick="app.go('home')">← 返回</button>
+                <div>
+                    <button class="level-btn" id="list-cet4" onclick="app.setListLevel('cet4')">四级</button>
+                    <button class="level-btn" id="list-cet6" onclick="app.setListLevel('cet6')">六级</button>
                 </div>
             </div>
-
-            <h2 class="page-title" style="font-size: 20px; margin-bottom: 16px;">单词列表</h2>
-            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;" id="list-stats">共 0 个单词</p>
-
-            <div style="overflow-x: auto;">
-                <table class="word-table">
-                    <thead>
-                        <tr>
-                            <th>单词</th>
-                            <th>音标</th>
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="word-table-body">
-                    </tbody>
+            <h1 style="font-size:20px;margin-bottom:16px">单词列表</h1>
+            <p style="text-align:center;color:var(--text2);margin-bottom:16px" id="list-info">共 0 个单词</p>
+            <div style="overflow-x:auto">
+                <table>
+                    <thead><tr><th>单词</th><th>音标</th><th>状态</th><th>操作</th></tr></thead>
+                    <tbody id="list-body"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- 不认识单词页 -->
-        <div id="unrecognized-page" class="page">
-            <h2 class="page-title" style="font-size: 20px;">不认识单词</h2>
-            
-            <div id="unrecognized-content">
-                <div style="overflow-x: auto;">
-                    <table class="word-table">
-                        <thead>
-                            <tr>
-                                <th>单词</th>
-                                <th>释义</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="unrecognized-table-body">
-                        </tbody>
+        <div id="wrong" class="page">
+            <h1 style="font-size:20px">不认识单词</h1>
+            <div id="wrong-content">
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead><tr><th>单词</th><th>释义</th><th>操作</th></tr></thead>
+                        <tbody id="wrong-body"></tbody>
                     </table>
                 </div>
-
-                <button class="btn btn-danger btn-block" style="margin-top: 20px;" onclick="app.clearUnrecognized()">清空列表</button>
+                <button class="btn btn-no btn-block" style="margin-top:20px" onclick="app.clearWrong()">清空列表</button>
             </div>
-
-            <div id="unrecognized-empty" class="empty-state" style="display: none;">
-                <div class="empty-icon">📚</div>
+            <div id="wrong-empty" class="empty" style="display:none">
+                <div style="font-size:48px;margin-bottom:16px">📚</div>
                 <p>还没有标记为不认识的单词</p>
-                <p style="font-size: 14px; margin-top: 8px;">在学习过程中标记不认识的单词会显示在这里</p>
             </div>
         </div>
 
-        <!-- 个人主页 -->
-        <div id="profile-page" class="page">
-            <h1 class="page-title">我的</h1>
-
+        <div id="me" class="page">
+            <h1>我的</h1>
             <div class="card">
-                <div class="setting-item">
-                    <span class="setting-label">夜间模式</span>
-                    <div class="switch" id="profile-dark-mode-switch" onclick="app.toggleDarkMode()"></div>
+                <div class="setting"><span>夜间模式</span><div class="switch" id="dark-sw2" onclick="app.toggleDark()"></div></div>
+            </div>
+            <div class="card">
+                <div class="setting" style="border-bottom:1px solid var(--border)">
+                    <span>重置学习进度</span>
+                    <button class="btn btn-sec" style="padding:8px 16px;font-size:14px" onclick="app.confirm('重置学习进度','确定要重置当前词库的学习进度吗？',()=>app.doReset())">重置</button>
+                </div>
+                <div class="setting" style="border-bottom:1px solid var(--border)">
+                    <span>清空不认识单词</span>
+                    <button class="btn btn-sec" style="padding:8px 16px;font-size:14px" onclick="app.confirm('清空不认识单词','确定要清空所有标记为不认识的单词吗？',()=>app.clearWrong())">清空</button>
+                </div>
+                <div class="setting">
+                    <span>导出词库</span>
+                    <button class="btn btn-sec" style="padding:8px 16px;font-size:14px" onclick="app.export()">导出</button>
                 </div>
             </div>
-
             <div class="card">
-                <div class="setting-item" style="border-bottom: 1px solid var(--border-color);">
-                    <span class="setting-label">重置学习进度</span>
-                    <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.showResetModal()">重置</button>
-                </div>
-                <div class="setting-item" style="border-bottom: 1px solid var(--border-color);">
-                    <span class="setting-label">清空不认识单词</span>
-                    <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.showClearModal()">清空</button>
-                </div>
-                <div class="setting-item">
-                    <span class="setting-label">导出词库</span>
-                    <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.exportWords()">导出</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="setting-item" style="padding-top: 0;">
-                    <span class="setting-label">关于</span>
-                    <span style="color: var(--text-secondary);">背单词 v1.0</span>
-                </div>
+                <div class="setting" style="padding-top:0"><span>关于</span><span style="color:var(--text2)">背单词 v1.0</span></div>
             </div>
         </div>
 
-        <!-- 底部导航 -->
-        <nav class="bottom-nav">
-            <div class="nav-item active" onclick="app.gotoHome()">
-                <div class="nav-icon">🏠</div>
-                <div class="nav-label">首页</div>
-            </div>
-            <div class="nav-item" onclick="app.gotoUnrecognized()">
-                <div class="nav-icon">📖</div>
-                <div class="nav-label">不认识</div>
-            </div>
-            <div class="nav-item" onclick="app.gotoProfile()">
-                <div class="nav-icon">👤</div>
-                <div class="nav-label">我的</div>
-            </div>
+        <nav class="nav">
+            <div class="nav-item on" onclick="app.go('home')"><div>🏠</div><div>首页</div></div>
+            <div class="nav-item" onclick="app.go('wrong')"><div>📖</div><div>不认识</div></div>
+            <div class="nav-item" onclick="app.go('me')"><div>👤</div><div>我的</div></div>
         </nav>
     </div>
 
-    <!-- 导入模态框 -->
     <div class="modal" id="import-modal">
         <div class="modal-content">
-            <div class="modal-title">导入词库</div>
-            <div class="modal-body">
-                <p style="margin-bottom: 12px; font-size: 14px; color: var(--text-secondary);">
-                    格式：每行一个单词，格式为：单词,音标,释义,例句<br>
-                    或粘贴JSON格式单词数组
-                </p>
-                <textarea id="import-text" placeholder="例如：
-abandon,əˈbændən,v. 放弃,He abandoned his car.
-ability,əˈbɪləti,n. 能力,She has the ability...
-
-或JSON格式：
-[{&quot;word&quot;:&quot;abandon&quot;,&quot;phonetic_uk&quot;:&quot;...&quot;,...}]"></textarea>
-                <div class="level-selector" style="margin-top: 12px;">
-                    <button class="level-btn" id="import-level-cet4" onclick="app.setImportLevel('cet4')">四级</button>
-                    <button class="level-btn" id="import-level-cet6" onclick="app.setImportLevel('cet6')">六级</button>
-                </div>
+            <h3>导入词库</h3>
+            <p>格式：单词,音标,释义 或 JSON数组</p>
+            <textarea id="import-txt" placeholder="abandon,əˈbændən,v. 放弃
+ability,əˈbɪləti,n. 能力"></textarea>
+            <div style="margin-top:12px">
+                <button class="level-btn" id="imp-cet4" onclick="app.impLevel='cet4'">四级</button>
+                <button class="level-btn" id="imp-cet6" onclick="app.impLevel='cet6'">六级</button>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="app.closeImportModal()">取消</button>
-                <button class="btn btn-primary" onclick="app.importWords()">导入</button>
+            <div class="modal-actions" style="margin-top:20px">
+                <button class="btn btn-sec" onclick="app.hideImport()">取消</button>
+                <button class="btn btn-prim" onclick="app.doImport()">导入</button>
             </div>
         </div>
     </div>
 
-    <!-- 确认模态框 -->
     <div class="modal" id="confirm-modal">
         <div class="modal-content">
-            <div class="modal-title" id="confirm-title">确认</div>
-            <div class="modal-body">
-                <p id="confirm-message">确定要执行此操作吗？</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="app.closeConfirmModal()">取消</button>
-                <button class="btn btn-primary" id="confirm-btn" onclick="app.executeConfirm()">确定</button>
+            <h3 id="cf-title">确认</h3>
+            <p id="cf-msg">确定要执行此操作吗？</p>
+            <div class="modal-actions">
+                <button class="btn btn-sec" onclick="app.hideConfirm()">取消</button>
+                <button class="btn btn-prim" onclick="app.execConfirm()">确定</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 默认词库数据
-        const DEFAULT_CET4_WORDS = [
-            {"word": "abandon", "phonetic_uk": "əˈbændən", "phonetic_us": "əˈbændən", "meaning": "v. 放弃，遗弃；n. 放任，狂热", "example": "He abandoned his car and ran for help."},
-            {"word": "ability", "phonetic_uk": "əˈbɪləti", "phonetic_us": "əˈbɪləti", "meaning": "n. 能力，才能", "example": "She has the ability to speak four languages."},
-            {"word": "absence", "phonetic_uk": "ˈæbsəns", "phonetic_us": "ˈæbsəns", "meaning": "n. 缺席，缺乏", "example": "His absence from school was noticed by the teacher."},
-            {"word": "absolute", "phonetic_uk": "ˈæbsəluːt", "phonetic_us": "ˈæbsəluːt", "meaning": "adj. 绝对的，完全的", "example": "I have absolute confidence in your ability."},
-            {"word": "absorb", "phonetic_uk": "əbˈzɔːb", "phonetic_us": "əbˈzɔːrb", "meaning": "v. 吸收，吸引", "example": "Plants absorb carbon dioxide from the air."},
-            {"word": "abstract", "phonetic_uk": "ˈæbstrækt", "phonetic_us": "ˈæbstrækt", "meaning": "adj. 抽象的；n. 摘要", "example": "Truth and beauty are abstract concepts."},
-            {"word": "abundant", "phonetic_uk": "əˈbʌndənt", "phonetic_us": "əˈbʌndənt", "meaning": "adj. 丰富的，充裕的", "example": "The region is abundant in wildlife."},
-            {"word": "academic", "phonetic_uk": "ˌækəˈdemɪk", "phonetic_us": "ˌækəˈdemɪk", "meaning": "adj. 学术的，学院的", "example": "The university offers various academic programs."},
-            {"word": "academy", "phonetic_uk": "əˈkædəmi", "phonetic_us": "əˈkædəmi", "meaning": "n. 学院，研究院", "example": "She was accepted into the Royal Academy of Arts."},
-            {"word": "accelerate", "phonetic_uk": "əkˈseləreɪt", "phonetic_us": "əkˈseləreɪt", "meaning": "v. 加速，促进", "example": "The car accelerated to overtake the bus."},
-            {"word": "accent", "phonetic_uk": "ˈæksent", "phonetic_us": "ˈæksent", "meaning": "n. 口音，重音", "example": "She spoke with a strong French accent."},
-            {"word": "accept", "phonetic_uk": "əkˈsept", "phonetic_us": "əkˈsept", "meaning": "v. 接受，认可", "example": "I accept your apology."},
-            {"word": "access", "phonetic_uk": "ˈækses", "phonetic_us": "ˈækses", "meaning": "n. 进入，通道；v. 访问", "example": "Students have access to the library resources."},
-            {"word": "accident", "phonetic_uk": "ˈæksɪdənt", "phonetic_us": "ˈæksɪdənt", "meaning": "n. 事故，意外", "example": "There was a serious accident on the highway."},
-            {"word": "accompany", "phonetic_uk": "əˈkʌmpəni", "phonetic_us": "əˈkʌmpəni", "meaning": "v. 陪伴，伴奏", "example": "She accompanied me to the doctor's office."}
-        ];
-
-        const DEFAULT_CET6_WORDS = [
-            {"word": "abbreviate", "phonetic_uk": "əˈbriːvieɪt", "phonetic_us": "əˈbriːvieɪt", "meaning": "v. 缩写，缩短", "example": "The name Benjamin is often abbreviated to Ben."},
-            {"word": "abnormal", "phonetic_uk": "æbˈnɔːml", "phonetic_us": "æbˈnɔːrml", "meaning": "adj. 异常的，反常的", "example": "The test results showed an abnormal level of cholesterol."},
-            {"word": "abolish", "phonetic_uk": "əˈbɒlɪʃ", "phonetic_us": "əˈbɑːlɪʃ", "meaning": "v. 废除，废止", "example": "Slavery was abolished in the 19th century."},
-            {"word": "abrupt", "phonetic_uk": "əˈbrʌpt", "phonetic_us": "əˈbrʌpt", "meaning": "adj. 突然的，唐突的", "example": "The bus came to an abrupt stop."},
-            {"word": "absurd", "phonetic_uk": "əbˈsɜːd", "phonetic_us": "əbˈsɜːrd", "meaning": "adj. 荒谬的，可笑的", "example": "It seems absurd to wait in line for hours."},
-            {"word": "abundance", "phonetic_uk": "əˈbʌndəns", "phonetic_us": "əˈbʌndəns", "meaning": "n. 丰富，充裕", "example": "The area has an abundance of wildlife."},
-            {"word": "accommodate", "phonetic_uk": "əˈkɒmədeɪt", "phonetic_us": "əˈkɑːmədeɪt", "meaning": "v. 容纳，适应，提供住宿", "example": "The hotel can accommodate up to 500 guests."},
-            {"word": "accomplish", "phonetic_uk": "əˈkʌmplɪʃ", "phonetic_us": "əˈkɑːmplɪʃ", "meaning": "v. 完成，实现", "example": "She accomplished her mission successfully."},
-            {"word": "accordance", "phonetic_uk": "əˈkɔːdns", "phonetic_us": "əˈkɔːrdns", "meaning": "n. 一致，按照", "example": "In accordance with your request, we have sent the documents."},
-            {"word": "accumulate", "phonetic_uk": "əˈkjuːmjəleɪt", "phonetic_us": "əˈkjuːmjəleɪt", "meaning": "v. 积累，积聚", "example": "Dust and dirt soon accumulate if a house is not cleaned regularly."},
-            {"word": "accurate", "phonetic_uk": "ˈækjərət", "phonetic_us": "ˈækjərət", "meaning": "adj. 准确的，精确的", "example": "The weather forecast turned out to be accurate."},
-            {"word": "accuse", "phonetic_uk": "əˈkjuːz", "phonetic_us": "əˈkjuːz", "meaning": "v. 控告，指责", "example": "He was accused of stealing the money."},
-            {"word": "accustomed", "phonetic_uk": "əˈkʌstəmd", "phonetic_us": "əˈkʌstəmd", "meaning": "adj. 习惯的，通常的", "example": "I am accustomed to working hard."},
-            {"word": "acknowledge", "phonetic_uk": "əkˈnɒlɪdʒ", "phonetic_us": "əkˈnɑːlɪdʒ", "meaning": "v. 承认，致谢", "example": "He refused to acknowledge his mistake."},
-            {"word": "acquaint", "phonetic_uk": "əˈkweɪnt", "phonetic_us": "əˈkweɪnt", "meaning": "v. 使熟悉，使了解", "example": "Let me acquaint you with the facts."}
-        ];
-
-        // 应用主类
-        class WordLearningApp {
-            constructor() {
-                this.currentLevel = 'cet4';
-                this.listLevel = 'cet4';
-                this.importLevel = 'cet4';
-                this.currentIndex = 0;
-                this.knownIndices = new Set();
-                this.unknownIndices = new Set();
-                this.confirmCallback = null;
-                this.init();
-            }
-
-            async init() {
-                this.loadSettings();
-                await this.initData();
+        const DEFAULT_CET6=[{word:"abbreviate",phonetic_uk:"əˈbriːvieɪt",phonetic_us:"əˈbriːvieɪt",meaning:"v. 缩写，缩短",example:"The name Benjamin is often abbreviated to Ben."},{word:"abnormal",phonetic_uk:"æbˈnɔːml",phonetic_us:"æbˈnɔːrml",meaning:"adj. 异常的，反常的",example:"The test results showed an abnormal level of cholesterol."}];
+        
+        const app={
+            lv:'cet4',listLv:'cet4',impLv:'cet4',idx:0,known:new Set,unknown:new Set,cfCb:null,
+            
+            async init(){
+                this.loadSetting();
+                await this.loadData();
                 this.updateUI();
-                this.setupEventListeners();
-                
-                // 强制刷新检查 - 如果URL包含refresh参数，强制重新加载词库
-                if (window.location.search.includes('refresh=1')) {
-                    console.log('强制刷新模式：重新加载词库');
+                this.bindEvent();
+                if(location.search.includes('refresh=1')){
                     localStorage.removeItem('cet4_words');
-                    localStorage.removeItem('cet4_version');
-                    await this.initData();
+                    localStorage.removeItem('cet4_ver');
+                    await this.loadData();
                     this.updateUI();
-                    // 清除URL参数
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    history.replaceState({},'',location.pathname);
                 }
-            }
-
-            // 从 localStorage 加载设置
-            loadSettings() {
-                const settings = localStorage.getItem('wordLearningSettings');
-                if (settings) {
-                    const parsed = JSON.parse(settings);
-                    this.currentLevel = parsed.currentLevel || 'cet4';
-                    if (parsed.darkMode) {
-                        document.documentElement.setAttribute('data-theme', 'dark');
+            },
+            
+            loadSetting(){
+                const s=localStorage.getItem('setting');
+                if(s){
+                    const p=JSON.parse(s);
+                    this.lv=p.lv||'cet4';
+                    if(p.dark)document.documentElement.setAttribute('data-theme','dark');
+                }
+            },
+            
+            saveSetting(){
+                localStorage.setItem('setting',JSON.stringify({lv:this.lv,dark:document.documentElement.getAttribute('data-theme')==='dark'}));
+            },
+            
+            async loadData(){
+                const VER='v2',sv=localStorage.getItem('cet4_ver');
+                if(!localStorage.getItem('cet4_words')||sv!==VER){
+                    try{
+                        const r=await fetch('cet4_words.json');
+                        if(r.ok){
+                            const w=await r.json();
+                            localStorage.setItem('cet4_words',JSON.stringify(w));
+                            localStorage.setItem('cet4_ver',VER);
+                        }else throw new Error('fetch failed');
+                    }catch(e){
+                        localStorage.setItem('cet4_words','[]');
+                        localStorage.setItem('cet4_ver',VER);
                     }
                 }
-            }
-
-            // 保存设置到 localStorage
-            saveSettings() {
-                const settings = {
-                    currentLevel: this.currentLevel,
-                    darkMode: document.documentElement.getAttribute('data-theme') === 'dark'
-                };
-                localStorage.setItem('wordLearningSettings', JSON.stringify(settings));
-            }
-
-            // 初始化数据
-            async initData() {
-                // 词库版本号，更新词库时修改此版本号
-                const CET4_VERSION = 'v2';
-                const savedVersion = localStorage.getItem('cet4_version');
-                
-                // 初始化四级词库 - 从外部JSON文件加载
-                // 如果没有数据或版本号不匹配，则重新加载
-                if (!localStorage.getItem('cet4_words') || savedVersion !== CET4_VERSION) {
-                    try {
-                        const response = await fetch('cet4_words.json');
-                        if (response.ok) {
-                            const words = await response.json();
-                            localStorage.setItem('cet4_words', JSON.stringify(words));
-                            localStorage.setItem('cet4_version', CET4_VERSION);
-                            console.log(`成功加载 ${words.length} 个四级单词`);
-                        } else {
-                            // 如果加载失败，使用默认数据
-                            localStorage.setItem('cet4_words', JSON.stringify(DEFAULT_CET4_WORDS));
-                            localStorage.setItem('cet4_version', CET4_VERSION);
-                        }
-                    } catch (e) {
-                        console.error('加载四级词库失败:', e);
-                        localStorage.setItem('cet4_words', JSON.stringify(DEFAULT_CET4_WORDS));
-                        localStorage.setItem('cet4_version', CET4_VERSION);
-                    }
-                }
-                // 初始化六级词库
-                if (!localStorage.getItem('cet6_words')) {
-                    localStorage.setItem('cet6_words', JSON.stringify(DEFAULT_CET6_WORDS));
-                }
-                // 初始化学习进度
-                if (!localStorage.getItem('progress')) {
-                    const progress = {
-                        cet4: { currentIndex: 0, known: [], unknown: [] },
-                        cet6: { currentIndex: 0, known: [], unknown: [] }
-                    };
-                    localStorage.setItem('progress', JSON.stringify(progress));
-                }
-                // 初始化不认识单词列表
-                if (!localStorage.getItem('unrecognized')) {
-                    localStorage.setItem('unrecognized', JSON.stringify({ cet4: [], cet6: [] }));
-                }
-                // 初始化每日统计
-                if (!localStorage.getItem('dailyStats')) {
-                    localStorage.setItem('dailyStats', JSON.stringify({}));
-                }
-            }
-
-            // 获取单词列表
-            getWords(level) {
-                const key = level + '_words';
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : [];
-            }
-
-            // 保存单词列表
-            saveWords(level, words) {
-                const key = level + '_words';
-                localStorage.setItem(key, JSON.stringify(words));
-            }
-
-            // 获取学习进度
-            getProgress() {
-                const data = localStorage.getItem('progress');
-                return data ? JSON.parse(data) : { cet4: { currentIndex: 0, known: [], unknown: [] }, cet6: { currentIndex: 0, known: [], unknown: [] } };
-            }
-
-            // 保存学习进度
-            saveProgress(progress) {
-                localStorage.setItem('progress', JSON.stringify(progress));
-            }
-
-            // 获取不认识单词列表
-            getUnrecognized() {
-                const data = localStorage.getItem('unrecognized');
-                return data ? JSON.parse(data) : { cet4: [], cet6: [] };
-            }
-
-            // 保存不认识单词列表
-            saveUnrecognized(unrecognized) {
-                localStorage.setItem('unrecognized', JSON.stringify(unrecognized));
-            }
-
-            // 获取每日统计
-            getDailyStats() {
-                const data = localStorage.getItem('dailyStats');
-                return data ? JSON.parse(data) : {};
-            }
-
-            // 保存每日统计
-            saveDailyStats(stats) {
-                localStorage.setItem('dailyStats', JSON.stringify(stats));
-            }
-
-            // 获取今日日期字符串
-            getTodayKey() {
-                return new Date().toISOString().split('T')[0];
-            }
-
-            // 更新UI
-            updateUI() {
-                this.updateHomeStats();
-                this.updateLevelButtons();
-                this.updateDarkModeSwitch();
-            }
-
-            // 更新首页统计
-            updateHomeStats() {
-                const words = this.getWords(this.currentLevel);
-                const progress = this.getProgress();
-                const unrecognized = this.getUnrecognized();
-                const dailyStats = this.getDailyStats();
-                
-                const todayKey = this.getTodayKey();
-                const todayCount = dailyStats[todayKey] || 0;
-                
-                document.getElementById('today-count').textContent = todayCount;
-                document.getElementById('total-count').textContent = words.length;
-                document.getElementById('unrecognized-count').textContent = 
-                    (unrecognized.cet4?.length || 0) + (unrecognized.cet6?.length || 0);
-            }
-
-            // 更新级别按钮状态
-            updateLevelButtons() {
-                document.getElementById('level-cet4').classList.toggle('active', this.currentLevel === 'cet4');
-                document.getElementById('level-cet6').classList.toggle('active', this.currentLevel === 'cet6');
-            }
-
-            // 更新夜间模式开关
-            updateDarkModeSwitch() {
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                document.getElementById('dark-mode-switch').classList.toggle('active', isDark);
-                document.getElementById('profile-dark-mode-switch').classList.toggle('active', isDark);
-            }
-
-            // 切换夜间模式
-            toggleDarkMode() {
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                if (isDark) {
-                    document.documentElement.removeAttribute('data-theme');
-                } else {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                }
-                this.updateDarkModeSwitch();
-                this.saveSettings();
-            }
-
-            // 设置当前级别
-            setLevel(level) {
-                this.currentLevel = level;
-                this.saveSettings();
-                this.updateLevelButtons();
-                this.updateHomeStats();
-            }
-
-            // 页面导航
-            gotoHome() {
-                this.showPage('home-page');
-                this.updateNavActive(0);
-                this.updateHomeStats();
-            }
-
-            gotoCard() {
-                this.showPage('card-page');
+                if(!localStorage.getItem('cet6_words'))localStorage.setItem('cet6_words',JSON.stringify(DEFAULT_CET6));
+                if(!localStorage.getItem('prog'))localStorage.setItem('prog',JSON.stringify({cet4:{idx:0,known:[],unknown:[]},cet6:{idx:0,known:[],unknown:[]}}));
+                if(!localStorage.getItem('wrong'))localStorage.setItem('wrong',JSON.stringify({cet4:[],cet6:[]}));
+                if(!localStorage.getItem('daily'))localStorage.setItem('daily',JSON.stringify({}));
+            },
+            
+            getWords(lv){const d=localStorage.getItem(lv+'_words');return d?JSON.parse(d):[]},
+            saveWords(lv,w){localStorage.setItem(lv+'_words',JSON.stringify(w))},
+            getProg(){const d=localStorage.getItem('prog');return d?JSON.parse(d):{cet4:{idx:0,known:[],unknown:[]},cet6:{idx:0,known:[],unknown:[]}}},
+            saveProg(p){localStorage.setItem('prog',JSON.stringify(p))},
+            getWrong(){const d=localStorage.getItem('wrong');return d?JSON.parse(d):{cet4:[],cet6:[]}},
+            saveWrong(w){localStorage.setItem('wrong',JSON.stringify(w))},
+            getDaily(){const d=localStorage.getItem('daily');return d?JSON.parse(d):{}},
+            saveDaily(d){localStorage.setItem('daily',JSON.stringify(d))},
+            today(){return new Date().toISOString().split('T')[0]},
+            
+            updateUI(){
+                const w=this.getWords(this.lv),p=this.getProg(),r=this.getWrong(),d=this.getDaily();
+                document.getElementById('today').textContent=d[this.today()]||0;
+                document.getElementById('total').textContent=w.length;
+                document.getElementById('unknown').textContent=(r.cet4?.length||0)+(r.cet6?.length||0);
+                document.getElementById('lv-cet4').classList.toggle('on',this.lv==='cet4');
+                document.getElementById('lv-cet6').classList.toggle('on',this.lv==='cet6');
+                const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+                document.getElementById('dark-sw').classList.toggle('on',isDark);
+                document.getElementById('dark-sw2').classList.toggle('on',isDark);
+            },
+            
+            toggleDark(){
+                const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+                if(isDark)document.documentElement.removeAttribute('data-theme');
+                else document.documentElement.setAttribute('data-theme','dark');
+                this.updateUI();
+                this.saveSetting();
+            },
+            
+            setLevel(lv){this.lv=lv;this.saveSetting();this.updateUI();},
+            
+            go(page){
+                document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+                document.getElementById(page).classList.add('active');
+                document.querySelectorAll('.nav-item').forEach((n,i)=>n.classList.toggle('on',(page==='home'&&i===0)||(page==='wrong'&&i===1)||(page==='me'&&i===2)));
+                if(page==='home')this.updateUI();
+                if(page==='card')this.loadCard();
+                if(page==='list')this.loadList();
+                if(page==='wrong')this.loadWrong();
+            },
+            
+            loadCard(){
+                const w=this.getWords(this.lv),p=this.getProg()[this.lv];
+                this.idx=p.idx||0;
+                this.known=new Set(p.known||[]);
+                this.unknown=new Set(p.unknown||[]);
+                if(this.idx>=w.length)this.showDone();
+                else this.showCard();
+            },
+            
+            showCard(){
+                const w=this.getWords(this.lv),word=w[this.idx];
+                document.getElementById('card-content').style.display='block';
+                document.getElementById('card-done').style.display='none';
+                document.getElementById('w-word').textContent=word.word;
+                document.getElementById('w-uk').textContent='/'+word.phonetic_uk+'/';
+                document.getElementById('w-us').textContent='/'+word.phonetic_us+'/';
+                document.getElementById('w-mean').textContent=word.meaning;
+                document.getElementById('w-ex').textContent=word.example||'暂无例句';
+                document.getElementById('card-progress').textContent=(this.idx+1)+' / '+w.length;
+                document.getElementById('card-bar').style.width=((this.idx+1)/w.length*100)+'%';
+            },
+            
+            showDone(){
+                document.getElementById('card-content').style.display='none';
+                document.getElementById('card-done').style.display='block';
+            },
+            
+            mark(isKnown){
+                if(isKnown)this.known.add(this.idx);
+                else{this.unknown.add(this.idx);this.addWrong();}
+                this.idx++;
+                this.saveProg();
+                this.recordDaily();
                 this.loadCard();
-            }
-
-            gotoList() {
-                this.showPage('list-page');
-                this.listLevel = this.currentLevel;
-                this.loadWordList();
-            }
-
-            gotoUnrecognized() {
-                this.showPage('unrecognized-page');
-                this.updateNavActive(1);
-                this.loadUnrecognizedList();
-            }
-
-            gotoProfile() {
-                this.showPage('profile-page');
-                this.updateNavActive(2);
-            }
-
-            showPage(pageId) {
-                document.querySelectorAll('.page').forEach(page => {
-                    page.classList.remove('active');
-                });
-                document.getElementById(pageId).classList.add('active');
-            }
-
-            updateNavActive(index) {
-                document.querySelectorAll('.nav-item').forEach((item, i) => {
-                    item.classList.toggle('active', i === index);
-                });
-            }
-
-            // 加载单词卡片
-            loadCard() {
-                const words = this.getWords(this.currentLevel);
-                const progress = this.getProgress();
-                const levelProgress = progress[this.currentLevel];
-                
-                this.currentIndex = levelProgress.currentIndex || 0;
-                this.knownIndices = new Set(levelProgress.known || []);
-                this.unknownIndices = new Set(levelProgress.unknown || []);
-
-                if (this.currentIndex >= words.length) {
-                    this.showCompletion();
-                } else {
-                    this.showWordCard();
-                    this.updateCardProgress();
-                }
-            }
-
-            showWordCard() {
-                const words = this.getWords(this.currentLevel);
-                const word = words[this.currentIndex];
-                
-                document.getElementById('word-card-content').style.display = 'block';
-                document.getElementById('completion-message').style.display = 'none';
-                
-                document.getElementById('word-text').textContent = word.word;
-                document.getElementById('phonetic-uk').textContent = '/' + word.phonetic_uk + '/';
-                document.getElementById('phonetic-us').textContent = '/' + word.phonetic_us + '/';
-                document.getElementById('meaning').textContent = word.meaning;
-                document.getElementById('example').textContent = word.example;
-            }
-
-            showCompletion() {
-                document.getElementById('word-card-content').style.display = 'none';
-                document.getElementById('completion-message').style.display = 'block';
-            }
-
-            updateCardProgress() {
-                const words = this.getWords(this.currentLevel);
-                const total = words.length;
-                const current = Math.min(this.currentIndex + 1, total);
-                
-                document.getElementById('card-progress').textContent = `${current} / ${total}`;
-                document.getElementById('card-progress-bar').style.width = `${(current / total) * 100}%`;
-            }
-
-            // 标记认识
-            markKnown() {
-                this.knownIndices.add(this.currentIndex);
-                this.currentIndex++;
-                this.saveCardProgress();
-                this.recordDailyStudy();
+            },
+            
+            addWrong(){
+                const w=this.getWords(this.lv),word=w[this.idx],r=this.getWrong();
+                if(!r[this.lv])r[this.lv]=[];
+                if(!r[this.lv].find(x=>x.word===word.word))r[this.lv].push(word);
+                this.saveWrong(r);
+            },
+            
+            saveProg(){
+                const p=this.getProg();
+                p[this.lv]={idx:this.idx,known:[...this.known],unknown:[...this.unknown]};
+                this.saveProg(p);
+            },
+            
+            recordDaily(){
+                const d=this.getDaily();
+                d[this.today()]=(d[this.today()]||0)+1;
+                this.saveDaily(d);
+            },
+            
+            reset(){
+                const p=this.getProg();
+                p[this.lv]={idx:0,known:[],unknown:[]};
+                this.saveProg(p);
                 this.loadCard();
-            }
-
-            // 标记不认识
-            markUnknown() {
-                this.unknownIndices.add(this.currentIndex);
-                this.addToUnrecognized(this.currentIndex);
-                this.currentIndex++;
-                this.saveCardProgress();
-                this.recordDailyStudy();
-                this.loadCard();
-            }
-
-            // 保存卡片进度
-            saveCardProgress() {
-                const progress = this.getProgress();
-                progress[this.currentLevel] = {
-                    currentIndex: this.currentIndex,
-                    known: Array.from(this.knownIndices),
-                    unknown: Array.from(this.unknownIndices)
-                };
-                this.saveProgress(progress);
-            }
-
-            // 添加到不认识列表
-            addToUnrecognized(index) {
-                const words = this.getWords(this.currentLevel);
-                const word = words[index];
-                const unrecognized = this.getUnrecognized();
-                
-                if (!unrecognized[this.currentLevel]) {
-                    unrecognized[this.currentLevel] = [];
+            },
+            
+            speak(type){
+                const w=this.getWords(this.lv);
+                if(this.idx>=w.length)return;
+                if('speechSynthesis'in window){
+                    const u=new SpeechSynthesisUtterance(w[this.idx].word);
+                    u.lang=type==='uk'?'en-GB':'en-US';
+                    u.rate=0.8;
+                    speechSynthesis.speak(u);
                 }
-                
-                // 检查是否已存在
-                const exists = unrecognized[this.currentLevel].some(w => w.word === word.word);
-                if (!exists) {
-                    unrecognized[this.currentLevel].push(word);
-                    this.saveUnrecognized(unrecognized);
-                }
-            }
-
-            // 记录每日学习
-            recordDailyStudy() {
-                const dailyStats = this.getDailyStats();
-                const todayKey = this.getTodayKey();
-                dailyStats[todayKey] = (dailyStats[todayKey] || 0) + 1;
-                this.saveDailyStats(dailyStats);
-            }
-
-            // 重置进度
-            resetProgress() {
-                const progress = this.getProgress();
-                progress[this.currentLevel] = {
-                    currentIndex: 0,
-                    known: [],
-                    unknown: []
-                };
-                this.saveProgress(progress);
-                this.loadCard();
-            }
-
-            // 朗读单词
-            speak(type) {
-                const words = this.getWords(this.currentLevel);
-                if (this.currentIndex >= words.length) return;
-                
-                const word = words[this.currentIndex];
-                const text = word.word;
-                
-                if ('speechSynthesis' in window) {
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = type === 'uk' ? 'en-GB' : 'en-US';
-                    utterance.rate = 0.8;
-                    speechSynthesis.speak(utterance);
-                }
-            }
-
-            // 加载单词列表
-            loadWordList() {
-                const words = this.getWords(this.listLevel);
-                const progress = this.getProgress();
-                const levelProgress = progress[this.listLevel] || { known: [], unknown: [] };
-                const knownSet = new Set(levelProgress.known || []);
-                const unknownSet = new Set(levelProgress.unknown || []);
-                
-                document.getElementById('list-level-cet4').classList.toggle('active', this.listLevel === 'cet4');
-                document.getElementById('list-level-cet6').classList.toggle('active', this.listLevel === 'cet6');
-                document.getElementById('list-stats').textContent = `共 ${words.length} 个单词`;
-                
-                const tbody = document.getElementById('word-table-body');
-                tbody.innerHTML = '';
-                
-                words.forEach((word, index) => {
-                    const row = document.createElement('tr');
-                    
-                    let statusClass = 'status-unlearned';
-                    let statusText = '○ 未学习';
-                    if (knownSet.has(index)) {
-                        statusClass = 'status-known';
-                        statusText = '✓ 已认识';
-                    } else if (unknownSet.has(index)) {
-                        statusClass = 'status-unknown';
-                        statusText = '✗ 不认识';
-                    }
-                    
-                    row.innerHTML = `
-                        <td class="word-cell">${word.word}</td>
-                        <td class="phonetic-cell">/${word.phonetic_uk}/</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td><button class="learn-btn" onclick="app.learnWord(${index})">学习</button></td>
-                    `;
-                    
-                    row.addEventListener('dblclick', () => this.learnWord(index));
-                    tbody.appendChild(row);
-                });
-            }
-
-            // 设置列表级别
-            setListLevel(level) {
-                this.listLevel = level;
-                this.loadWordList();
-            }
-
-            // 学习单词（从列表跳转）
-            learnWord(index) {
-                this.currentLevel = this.listLevel;
-                const progress = this.getProgress();
-                progress[this.currentLevel].currentIndex = index;
-                this.saveProgress(progress);
-                this.saveSettings();
-                this.gotoCard();
-            }
-
-            // 加载不认识单词列表
-            loadUnrecognizedList() {
-                const unrecognized = this.getUnrecognized();
-                const allUnrecognized = [
-                    ...(unrecognized.cet4 || []).map(w => ({ ...w, level: 'cet4' })),
-                    ...(unrecognized.cet6 || []).map(w => ({ ...w, level: 'cet6' }))
-                ];
-                
-                const content = document.getElementById('unrecognized-content');
-                const empty = document.getElementById('unrecognized-empty');
-                
-                if (allUnrecognized.length === 0) {
-                    content.style.display = 'none';
-                    empty.style.display = 'block';
-                } else {
-                    content.style.display = 'block';
-                    empty.style.display = 'none';
-                    
-                    const tbody = document.getElementById('unrecognized-table-body');
-                    tbody.innerHTML = '';
-                    
-                    allUnrecognized.forEach((word, index) => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td class="word-cell">${word.word}</td>
-                            <td>${word.meaning}</td>
-                            <td><button class="learn-btn" onclick="app.learnUnrecognizedWord(${index}, '${word.level}')">学习</button></td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                }
-            }
-
-            // 学习不认识的单词
-            learnUnrecognizedWord(index, level) {
-                this.currentLevel = level;
-                const unrecognized = this.getUnrecognized();
-                const wordList = unrecognized[level] || [];
-                const word = wordList[index];
-                
-                if (word) {
-                    const words = this.getWords(level);
-                    const wordIndex = words.findIndex(w => w.word === word.word);
-                    if (wordIndex !== -1) {
-                        const progress = this.getProgress();
-                        progress[level].currentIndex = wordIndex;
-                        this.saveProgress(progress);
-                        this.saveSettings();
-                        this.gotoCard();
+            },
+            
+            loadList(){
+                const w=this.getWords(this.listLv),p=this.getProg()[this.listLv]||{known:[],unknown:[]};
+                const known=new Set(p.known||[]),unknown=new Set(p.unknown||[]);
+                document.getElementById('list-cet4').classList.toggle('on',this.listLv==='cet4');
+                document.getElementById('list-cet6').classList.toggle('on',this.listLv==='cet6');
+                document.getElementById('list-info').textContent='共 '+w.length+' 个单词';
+                const tb=document.getElementById('list-body');
+                tb.innerHTML=w.map((word,i)=>{
+                    let cls='badge-wait',txt='○ 未学习';
+                    if(known.has(i)){cls='badge-ok';txt='✓ 已认识';}
+                    else if(unknown.has(i)){cls='badge-no';txt='✗ 不认识';}
+                    return `<tr><td style="font-weight:600">${word.word}</td><td style="color:var(--text2);font-size:12px">/${word.phonetic_uk}/</td><td><span class="badge ${cls}">${txt}</span></td><td><button class="btn btn-prim" style="padding:6px 12px;font-size:12px" onclick="app.learn(${i})">学习</button></td></tr>`;
+                }).join('');
+            },
+            
+            setListLevel(lv){this.listLv=lv;this.loadList();},
+            
+            learn(i){
+                this.lv=this.listLv;
+                const p=this.getProg();
+                p[this.lv].idx=i;
+                this.saveProg(p);
+                this.saveSetting();
+                this.go('card');
+            },
+            
+            loadWrong(){
+                const r=this.getWrong(),all=[...r.cet4.map(w=>({...w,lv:'cet4'})),...r.cet6.map(w=>({...w,lv:'cet6'}))];
+                document.getElementById('wrong-content').style.display=all.length?'block':'none';
+                document.getElementById('wrong-empty').style.display=all.length?'none':'block';
+                document.getElementById('wrong-body').innerHTML=all.map((w,i)=>`<tr><td style="font-weight:600">${w.word}</td><td>${w.meaning}</td><td><button class="btn btn-prim" style="padding:6px 12px;font-size:12px" onclick="app.learnWrong(${i},'${w.lv}')">学习</button></td></tr>`).join('');
+            },
+            
+            learnWrong(i,lv){
+                const r=this.getWrong(),w=r[lv][i];
+                if(w){
+                    const words=this.getWords(lv),idx=words.findIndex(x=>x.word===w.word);
+                    if(idx!==-1){
+                        this.lv=lv;
+                        const p=this.getProg();
+                        p[lv].idx=idx;
+                        this.saveProg(p);
+                        this.saveSetting();
+                        this.go('card');
                     }
                 }
+            },
+            
+            clearWrong(){this.saveWrong({cet4:[],cet6:[]});this.loadWrong();this.updateUI();},
+            
+            showImport(){
+                document.getElementById('import-modal').classList.add('on');
+                document.getElementById('imp-cet4').classList.toggle('on',this.impLv==='cet4');
+                document.getElementById('imp-cet6').classList.toggle('on',this.impLv==='cet6');
+            },
+            hideImport(){document.getElementById('import-modal').classList.remove('on');document.getElementById('import-txt').value='';},
+            
+            doImport(){
+                const txt=document.getElementById('import-txt').value.trim();
+                if(!txt){alert('请输入单词数据');return;}
+                let words=[];
+                try{words=JSON.parse(txt);if(!Array.isArray(words))throw new Error();}
+                catch{words=txt.split('\n').map(l=>{const p=l.split(',');if(p.length>=2)return{word:p[0].trim(),phonetic_uk:p[1]?.trim()||'',phonetic_us:p[1]?.trim()||'',meaning:p[2]?.trim()||'',example:p[3]?.trim()||''};}).filter(Boolean);}
+                if(!words.length){alert('未能解析出有效单词数据');return;}
+                const exist=this.getWords(this.impLv),map=new Map(exist.map(w=>[w.word,w]));
+                words.forEach(w=>{if(w.word)map.set(w.word,{word:w.word,phonetic_uk:w.phonetic_uk||w.phonetic||'',phonetic_us:w.phonetic_us||w.phonetic||'',meaning:w.meaning||w.definition||'',example:w.example||w.sentence||''});});
+                this.saveWords(this.impLv,[...map.values()]);
+                this.hideImport();
+                this.updateUI();
+                alert('成功导入 '+words.length+' 个单词');
+            },
+            
+            export(){
+                const data={cet4:this.getWords('cet4'),cet6:this.getWords('cet6'),date:new Date().toISOString()};
+                const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+                const url=URL.createObjectURL(blob),a=document.createElement('a');
+                a.href=url;a.download='words_'+new Date().toISOString().split('T')[0]+'.json';a.click();URL.revokeObjectURL(url);
+            },
+            
+            confirm(t,m,cb){
+                document.getElementById('cf-title').textContent=t;
+                document.getElementById('cf-msg').textContent=m;
+                document.getElementById('confirm-modal').classList.add('on');
+                this.cfCb=cb;
+            },
+            hideConfirm(){document.getElementById('confirm-modal').classList.remove('on');this.cfCb=null;},
+            execConfirm(){if(this.cfCb)this.cfCb();this.hideConfirm();},
+            
+            doReset(){
+                const p=this.getProg();
+                p[this.lv]={idx:0,known:[],unknown:[]};
+                this.saveProg(p);
+                this.updateUI();
+            },
+            
+            bindEvent(){
+                let sy=0;
+                document.getElementById('card').addEventListener('touchstart',e=>{sy=e.touches[0].clientY;},{passive:true});
+                document.getElementById('card').addEventListener('touchend',e=>{
+                    const ey=e.changedTouches[0].clientY,d=sy-ey;
+                    if(Math.abs(d)>50)d>0?this.mark(0):this.mark(1);
+                },{passive:true});
+                let wt=null;
+                document.getElementById('card').addEventListener('wheel',e=>{
+                    if(wt)return;
+                    wt=setTimeout(()=>wt=null,300);
+                    e.deltaY>0?this.mark(0):this.mark(1);
+                },{passive:true});
             }
-
-            // 清空不认识单词
-            clearUnrecognized() {
-                this.saveUnrecognized({ cet4: [], cet6: [] });
-                this.loadUnrecognizedList();
-                this.updateHomeStats();
-            }
-
-            // 显示导入模态框
-            showImportModal() {
-                document.getElementById('import-modal').classList.add('active');
-                this.updateImportLevelButtons();
-            }
-
-            closeImportModal() {
-                document.getElementById('import-modal').classList.remove('active');
-                document.getElementById('import-text').value = '';
-            }
-
-            setImportLevel(level) {
-                this.importLevel = level;
-                this.updateImportLevelButtons();
-            }
-
-            updateImportLevelButtons() {
-                document.getElementById('import-level-cet4').classList.toggle('active', this.importLevel === 'cet4');
-                document.getElementById('import-level-cet6').classList.toggle('active', this.importLevel === 'cet6');
-            }
-
-            // 导入单词
-            importWords() {
-                const text = document.getElementById('import-text').value.trim();
-                if (!text) {
-                    alert('请输入单词数据');
-                    return;
-                }
-
-                let words = [];
-                
-                try {
-                    // 尝试解析JSON
-                    words = JSON.parse(text);
-                    if (!Array.isArray(words)) {
-                        throw new Error('JSON必须是数组格式');
-                    }
-                } catch (e) {
-                    // 尝试解析CSV格式
-                    words = this.parseCSV(text);
-                }
-
-                if (words.length === 0) {
-                    alert('未能解析出有效单词数据');
-                    return;
-                }
-
-                // 合并到现有词库
-                const existingWords = this.getWords(this.importLevel);
-                const wordMap = new Map(existingWords.map(w => [w.word, w]));
-                
-                words.forEach(word => {
-                    if (word.word) {
-                        wordMap.set(word.word, {
-                            word: word.word,
-                            phonetic_uk: word.phonetic_uk || word.phonetic || '',
-                            phonetic_us: word.phonetic_us || word.phonetic || '',
-                            meaning: word.meaning || word.definition || '',
-                            example: word.example || word.sentence || ''
-                        });
-                    }
-                });
-
-                this.saveWords(this.importLevel, Array.from(wordMap.values()));
-                this.closeImportModal();
-                this.updateHomeStats();
-                alert(`成功导入 ${words.length} 个单词`);
-            }
-
-            // 解析CSV格式
-            parseCSV(text) {
-                const words = [];
-                const lines = text.split('\n');
-                
-                lines.forEach(line => {
-                    line = line.trim();
-                    if (!line) return;
-                    
-                    const parts = line.split(',');
-                    if (parts.length >= 2) {
-                        words.push({
-                            word: parts[0].trim(),
-                            phonetic_uk: parts[1] ? parts[1].trim() : '',
-                            phonetic_us: parts[1] ? parts[1].trim() : '',
-                            meaning: parts[2] ? parts[2].trim() : '',
-                            example: parts[3] ? parts[3].trim() : ''
-                        });
-                    }
-                });
-                
-                return words;
-            }
-
-            // 导出词库
-            exportWords() {
-                const cet4Words = this.getWords('cet4');
-                const cet6Words = this.getWords('cet6');
-                const data = {
-                    cet4: cet4Words,
-                    cet6: cet6Words,
-                    exportDate: new Date().toISOString()
-                };
-                
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `word_library_${new Date().toISOString().split('T')[0]}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-
-            // 显示确认模态框
-            showConfirmModal(title, message, callback) {
-                document.getElementById('confirm-title').textContent = title;
-                document.getElementById('confirm-message').textContent = message;
-                document.getElementById('confirm-modal').classList.add('active');
-                this.confirmCallback = callback;
-            }
-
-            closeConfirmModal() {
-                document.getElementById('confirm-modal').classList.remove('active');
-                this.confirmCallback = null;
-            }
-
-            executeConfirm() {
-                if (this.confirmCallback) {
-                    this.confirmCallback();
-                }
-                this.closeConfirmModal();
-            }
-
-            // 显示重置确认
-            showResetModal() {
-                this.showConfirmModal(
-                    '重置学习进度',
-                    '确定要重置当前词库的学习进度吗？此操作不可恢复。',
-                    () => {
-                        const progress = this.getProgress();
-                        progress[this.currentLevel] = { currentIndex: 0, known: [], unknown: [] };
-                        this.saveProgress(progress);
-                        this.updateHomeStats();
-                        alert('学习进度已重置');
-                    }
-                );
-            }
-
-            // 显示清空确认
-            showClearModal() {
-                this.showConfirmModal(
-                    '清空不认识单词',
-                    '确定要清空所有标记为不认识的单词吗？此操作不可恢复。',
-                    () => {
-                        this.clearUnrecognized();
-                        alert('不认识单词列表已清空');
-                    }
-                );
-            }
-
-            // 设置事件监听
-            setupEventListeners() {
-                // 卡片页滑动手势支持
-                let touchStartY = 0;
-                const cardPage = document.getElementById('card-page');
-                
-                cardPage.addEventListener('touchstart', (e) => {
-                    touchStartY = e.touches[0].clientY;
-                }, { passive: true });
-                
-                cardPage.addEventListener('touchend', (e) => {
-                    const touchEndY = e.changedTouches[0].clientY;
-                    const diff = touchStartY - touchEndY;
-                    
-                    if (Math.abs(diff) > 50) {
-                        if (diff > 0) {
-                            // 向上滑动 - 标记不认识
-                            this.markUnknown();
-                        } else {
-                            // 向下滑动 - 标记认识
-                            this.markKnown();
-                        }
-                    }
-                }, { passive: true });
-
-                // 鼠标滚轮支持
-                let wheelTimeout = null;
-                cardPage.addEventListener('wheel', (e) => {
-                    if (wheelTimeout) return;
-                    
-                    wheelTimeout = setTimeout(() => {
-                        wheelTimeout = null;
-                    }, 300);
-                    
-                    if (e.deltaY > 0) {
-                        this.markUnknown();
-                    } else if (e.deltaY < 0) {
-                        this.markKnown();
-                    }
-                }, { passive: true });
-            }
-        }
-
-        // 初始化应用
-        const app = new WordLearningApp();
+        };
+        
+        app.init();
     </script>
 </body>
 </html>
