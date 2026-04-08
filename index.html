@@ -1258,6 +1258,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const word = words[this.currentIndex];
                 const text = word.word;
                 
+                // 方法1: 使用 Web Speech API
                 if ('speechSynthesis' in window) {
                     // 取消之前的语音（解决手机端重叠问题）
                     window.speechSynthesis.cancel();
@@ -1268,26 +1269,83 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     utterance.volume = 1;
                     utterance.pitch = 1;
                     
+                    let hasPlayed = false;
+                    
+                    utterance.onstart = () => {
+                        hasPlayed = true;
+                    };
+                    
                     // 错误处理
                     utterance.onerror = (event) => {
                         console.error('语音播放错误:', event.error);
-                        // 尝试用默认语音重试
-                        if (event.error === 'not-allowed' || event.error === 'interrupted') {
-                            setTimeout(() => {
-                                const retryUtterance = new SpeechSynthesisUtterance(text);
-                                retryUtterance.rate = 0.8;
-                                window.speechSynthesis.speak(retryUtterance);
-                            }, 100);
+                        // 如果播放失败，尝试备用方案
+                        if (!hasPlayed) {
+                            this.speakWithAudio(text, type);
                         }
                     };
                     
                     // 手机端需要延迟一点才能播放
                     setTimeout(() => {
                         window.speechSynthesis.speak(utterance);
+                        // 500ms 后检查是否播放成功
+                        setTimeout(() => {
+                            if (!hasPlayed) {
+                                this.speakWithAudio(text, type);
+                            }
+                        }, 500);
                     }, 50);
                 } else {
-                    alert('您的浏览器不支持语音播放功能');
+                    // 不支持 Web Speech API，直接使用备用方案
+                    this.speakWithAudio(text, type);
                 }
+            }
+            
+            // 备用方案：使用在线音频 API
+            speakWithAudio(text, type) {
+                // 使用有道词典或谷歌翻译的音频 API
+                // 方案1: 有道词典 (推荐，国内访问快)
+                const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`;
+                
+                // 方案2: 谷歌翻译 TTS
+                // const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${type === 'uk' ? 'en' : 'en-US'}&client=tw-ob`;
+                
+                const audio = new Audio(youdaoUrl);
+                audio.play().catch(err => {
+                    console.error('音频播放失败:', err);
+                    // 如果在线音频也失败，显示提示但不弹窗
+                    this.showToast('音频播放失败，请检查网络连接');
+                });
+            }
+            
+            // 显示轻提示
+            showToast(message) {
+                // 移除旧的提示
+                const oldToast = document.getElementById('toast');
+                if (oldToast) oldToast.remove();
+                
+                const toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.textContent = message;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 100px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.7);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    z-index: 1000;
+                    animation: fadeIn 0.3s ease;
+                `;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, 2000);
             }
 
             // 加载单词列表
