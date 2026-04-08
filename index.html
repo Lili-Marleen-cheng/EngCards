@@ -1302,19 +1302,47 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             
             // 备用方案：使用在线音频 API
             speakWithAudio(text, type) {
-                // 使用有道词典或谷歌翻译的音频 API
-                // 方案1: 有道词典 (推荐，国内访问快)
-                const youdaoUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`;
+                // 使用多个音频源，一个失败自动尝试下一个
+                const audioSources = [
+                    // 方案1: 有道词典
+                    `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`,
+                    // 方案2: 百度翻译
+                    `https://fanyi.baidu.com/gettts?lan=${type === 'uk' ? 'uk' : 'en'}&text=${encodeURIComponent(text)}&spd=3&source=web`,
+                    // 方案3: 必应词典
+                    `https://www.bing.com/tspeak?&format=audio/mp3&language=${type === 'uk' ? 'en-GB' : 'en-US'}&IG=0&IID=translator.5023&text=${encodeURIComponent(text)}`
+                ];
                 
-                // 方案2: 谷歌翻译 TTS
-                // const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${type === 'uk' ? 'en' : 'en-US'}&client=tw-ob`;
-                
-                const audio = new Audio(youdaoUrl);
-                audio.play().catch(err => {
-                    console.error('音频播放失败:', err);
-                    // 如果在线音频也失败，显示提示但不弹窗
+                this.tryPlayAudio(audioSources, 0);
+            }
+            
+            // 尝试播放音频，失败则尝试下一个源
+            tryPlayAudio(sources, index) {
+                if (index >= sources.length) {
                     this.showToast('音频播放失败，请检查网络连接');
-                });
+                    return;
+                }
+                
+                const audio = new Audio(sources[index]);
+                
+                audio.oncanplaythrough = () => {
+                    audio.play().catch(err => {
+                        console.error(`音频源 ${index + 1} 播放失败:`, err);
+                        this.tryPlayAudio(sources, index + 1);
+                    });
+                };
+                
+                audio.onerror = () => {
+                    console.error(`音频源 ${index + 1} 加载失败`);
+                    this.tryPlayAudio(sources, index + 1);
+                };
+                
+                // 3秒超时
+                setTimeout(() => {
+                    if (audio.readyState < 3) {
+                        console.error(`音频源 ${index + 1} 加载超时`);
+                        this.tryPlayAudio(sources, index + 1);
+                    }
+                }, 3000);
             }
             
             // 显示轻提示
