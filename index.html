@@ -1259,10 +1259,34 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const text = word.word;
                 
                 if ('speechSynthesis' in window) {
+                    // 取消之前的语音（解决手机端重叠问题）
+                    window.speechSynthesis.cancel();
+                    
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = type === 'uk' ? 'en-GB' : 'en-US';
                     utterance.rate = 0.8;
-                    speechSynthesis.speak(utterance);
+                    utterance.volume = 1;
+                    utterance.pitch = 1;
+                    
+                    // 错误处理
+                    utterance.onerror = (event) => {
+                        console.error('语音播放错误:', event.error);
+                        // 尝试用默认语音重试
+                        if (event.error === 'not-allowed' || event.error === 'interrupted') {
+                            setTimeout(() => {
+                                const retryUtterance = new SpeechSynthesisUtterance(text);
+                                retryUtterance.rate = 0.8;
+                                window.speechSynthesis.speak(retryUtterance);
+                            }, 100);
+                        }
+                    };
+                    
+                    // 手机端需要延迟一点才能播放
+                    setTimeout(() => {
+                        window.speechSynthesis.speak(utterance);
+                    }, 50);
+                } else {
+                    alert('您的浏览器不支持语音播放功能');
                 }
             }
 
@@ -1543,6 +1567,22 @@ ability,əˈbɪləti,n. 能力,She has the ability...
 
             // 设置事件监听
             setupEventListeners() {
+                // iOS Safari 音频初始化 - 需要用户首次交互才能启用语音
+                const initAudio = () => {
+                    if ('speechSynthesis' in window) {
+                        // 创建一个空的 utterance 来解锁音频
+                        const utterance = new SpeechSynthesisUtterance('');
+                        utterance.volume = 0;
+                        window.speechSynthesis.speak(utterance);
+                        window.speechSynthesis.cancel();
+                    }
+                    // 移除监听器，只需要初始化一次
+                    document.removeEventListener('touchstart', initAudio);
+                    document.removeEventListener('click', initAudio);
+                };
+                document.addEventListener('touchstart', initAudio, { once: true });
+                document.addEventListener('click', initAudio, { once: true });
+
                 // 卡片页滑动手势支持
                 let touchStartY = 0;
                 const cardPage = document.getElementById('card-page');
