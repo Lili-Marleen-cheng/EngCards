@@ -361,13 +361,14 @@
         }
 
         .btn-known {
-            background-color: var(--success-color);
-            color: white;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
         }
 
         .btn-unknown {
-            background-color: var(--error-color);
-            color: white;
+            background-color: var(--accent-color);
+            color: var(--bg-primary);
         }
 
         /* 表格 */
@@ -654,7 +655,7 @@
         <!-- 单词卡片页 -->
         <div id="card-page" class="page">
             <div class="toolbar">
-                <button class="back-btn" onclick="app.gotoHome()">← 返回</button>
+                <button class="back-btn" onclick="app.goBackFromCard()">← 返回</button>
                 <span id="card-progress">0 / 0</span>
             </div>
 
@@ -694,7 +695,7 @@
                 <h2>🎉 恭喜完成！</h2>
                 <p>本词库所有单词已学习完毕</p>
                 <button class="btn btn-primary btn-block" onclick="app.resetProgress()">重新开始</button>
-                <button class="btn btn-secondary btn-block" onclick="app.gotoHome()" style="margin-top: 12px;">返回首页</button>
+                <button class="btn btn-secondary btn-block" onclick="app.goBackFromCard()" style="margin-top: 12px;">返回</button>
             </div>
         </div>
 
@@ -1101,7 +1102,8 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.updateHomeStats();
             }
 
-            gotoCard() {
+            gotoCard(fromPage = 'home') {
+                this.fromPage = fromPage; // 记录从哪个页面进入
                 this.showPage('card-page');
                 this.loadCard();
             }
@@ -1110,6 +1112,17 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.showPage('list-page');
                 this.listLevel = this.currentLevel;
                 this.loadWordList();
+            }
+            
+            // 从卡片页返回
+            goBackFromCard() {
+                if (this.fromPage === 'list') {
+                    this.gotoList();
+                } else if (this.fromPage === 'unrecognized') {
+                    this.gotoUnrecognized();
+                } else {
+                    this.gotoHome();
+                }
             }
 
             gotoUnrecognized() {
@@ -1376,7 +1389,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 }, 2000);
             }
 
-            // 加载单词列表
+            // 加载单词列表 - 使用虚拟滚动优化性能
             loadWordList() {
                 const words = this.getWords(this.listLevel);
                 const progress = this.getProgress();
@@ -1391,28 +1404,73 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const tbody = document.getElementById('word-table-body');
                 tbody.innerHTML = '';
                 
-                words.forEach((word, index) => {
-                    const row = document.createElement('tr');
+                // 使用文档片段批量插入，减少重绘
+                const fragment = document.createDocumentFragment();
+                const batchSize = 50; // 每批处理50个
+                let currentIndex = 0;
+                
+                const processBatch = () => {
+                    const endIndex = Math.min(currentIndex + batchSize, words.length);
                     
-                    let statusClass = 'status-unlearned';
-                    let statusText = '○ 未学习';
-                    if (knownSet.has(index)) {
-                        statusClass = 'status-known';
-                        statusText = '✓ 已认识';
-                    } else if (unknownSet.has(index)) {
-                        statusClass = 'status-unknown';
-                        statusText = '✗ 不认识';
+                    for (let i = currentIndex; i < endIndex; i++) {
+                        const word = words[i];
+                        const row = document.createElement('tr');
+                        
+                        let statusClass = 'status-unlearned';
+                        let statusText = '○ 未学习';
+                        if (knownSet.has(i)) {
+                            statusClass = 'status-known';
+                            statusText = '✓ 已认识';
+                        } else if (unknownSet.has(i)) {
+                            statusClass = 'status-unknown';
+                            statusText = '✗ 不认识';
+                        }
+                        
+                        // 使用事件委托而不是每个行都绑定事件
+                        row.dataset.index = i;
+                        row.innerHTML = `
+                            <td class="word-cell">${word.word}</td>
+                            <td class="phonetic-cell">/${word.phonetic_uk}/</td>
+                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                            <td><button class="learn-btn" data-index="${i}">学习</button></td>
+                        `;
+                        
+                        fragment.appendChild(row);
                     }
                     
-                    row.innerHTML = `
-                        <td class="word-cell">${word.word}</td>
-                        <td class="phonetic-cell">/${word.phonetic_uk}/</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td><button class="learn-btn" onclick="app.learnWord(${index})">学习</button></td>
-                    `;
+                    currentIndex = endIndex;
                     
-                    row.addEventListener('dblclick', () => this.learnWord(index));
-                    tbody.appendChild(row);
+                    if (currentIndex < words.length) {
+                        // 还有数据，继续处理
+                        requestAnimationFrame(processBatch);
+                    } else {
+                        // 全部完成，一次性插入
+                        tbody.appendChild(fragment);
+                        this.bindListEvents(tbody);
+                    }
+                };
+                
+                // 开始处理
+                processBatch();
+            }
+            
+            // 绑定列表事件（使用事件委托）
+            bindListEvents(tbody) {
+                // 双击行跳转
+                tbody.addEventListener('dblclick', (e) => {
+                    const row = e.target.closest('tr');
+                    if (row && row.dataset.index) {
+                        this.learnWord(parseInt(row.dataset.index));
+                    }
+                });
+                
+                // 点击学习按钮
+                tbody.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('learn-btn')) {
+                        e.stopPropagation();
+                        const index = parseInt(e.target.dataset.index);
+                        this.learnWord(index);
+                    }
                 });
             }
 
@@ -1429,7 +1487,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 progress[this.currentLevel].currentIndex = index;
                 this.saveProgress(progress);
                 this.saveSettings();
-                this.gotoCard();
+                this.gotoCard('list'); // 标记从列表页进入
             }
 
             // 加载不认识单词列表
@@ -1480,7 +1538,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                         progress[level].currentIndex = wordIndex;
                         this.saveProgress(progress);
                         this.saveSettings();
-                        this.gotoCard();
+                        this.gotoCard('unrecognized'); // 标记从不认识页面进入
                     }
                 }
             }
@@ -1683,8 +1741,8 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     
                     if (Math.abs(diff) > 50) {
                         if (diff > 0) {
-                            // 向上滑动 - 标记不认识
-                            this.markUnknown();
+                            // 向上滑动 - 返回上一词
+                            this.goToPrevWord();
                         } else {
                             // 向下滑动 - 标记认识
                             this.markKnown();
@@ -1702,11 +1760,26 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     }, 300);
                     
                     if (e.deltaY > 0) {
-                        this.markUnknown();
+                        // 向下滚动 - 返回上一词
+                        this.goToPrevWord();
                     } else if (e.deltaY < 0) {
+                        // 向上滚动 - 标记认识
                         this.markKnown();
                     }
                 }, { passive: true });
+            }
+            
+            // 返回上一词
+            goToPrevWord() {
+                const words = this.getWords(this.currentLevel);
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.saveCardProgress();
+                    this.showWordCard();
+                    this.updateCardProgress();
+                } else {
+                    this.showToast('已经是第一个单词了');
+                }
             }
         }
 
