@@ -1112,6 +1112,38 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.showPage('list-page');
                 this.listLevel = this.currentLevel;
                 this.loadWordList();
+                // 恢复滚动位置
+                setTimeout(() => {
+                    this.restoreListScroll();
+                }, 100);
+            }
+            
+            // 保存列表滚动位置
+            saveListScroll() {
+                const listPage = document.getElementById('list-page');
+                if (listPage) {
+                    this.listScrollTop = listPage.scrollTop;
+                    // 同时保存当前正在学习的单词索引
+                    this.lastLearnedIndex = this.currentIndex;
+                }
+            }
+            
+            // 恢复列表滚动位置
+            restoreListScroll() {
+                if (this.lastLearnedIndex !== undefined) {
+                    // 滚动到之前学习的单词位置
+                    const rowHeight = 50; // 估算每行高度
+                    const listPage = document.getElementById('list-page');
+                    if (listPage) {
+                        const scrollPosition = this.lastLearnedIndex * rowHeight;
+                        listPage.scrollTop = scrollPosition;
+                    }
+                } else if (this.listScrollTop) {
+                    const listPage = document.getElementById('list-page');
+                    if (listPage) {
+                        listPage.scrollTop = this.listScrollTop;
+                    }
+                }
             }
             
             // 从卡片页返回
@@ -1315,7 +1347,16 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             
             // 备用方案：使用在线音频 API
             speakWithAudio(text, type) {
-                // 使用多个音频源，一个失败自动尝试下一个
+                // 如果已经在播放，先停止
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+                
+                // 标记是否已播放成功
+                this.audioPlayed = false;
+                
+                // 使用多个音频源，只播放第一个成功的
                 const audioSources = [
                     // 方案1: 有道词典
                     `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`,
@@ -1325,37 +1366,50 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     `https://www.bing.com/tspeak?&format=audio/mp3&language=${type === 'uk' ? 'en-GB' : 'en-US'}&IG=0&IID=translator.5023&text=${encodeURIComponent(text)}`
                 ];
                 
-                this.tryPlayAudio(audioSources, 0);
-            }
-            
-            // 尝试播放音频，失败则尝试下一个源
-            tryPlayAudio(sources, index) {
-                if (index >= sources.length) {
-                    this.showToast('音频播放失败，请检查网络连接');
-                    return;
-                }
+                // 同时尝试所有源，只播放第一个成功的
+                const audioElements = [];
+                let playedCount = 0;
                 
-                const audio = new Audio(sources[index]);
-                
-                audio.oncanplaythrough = () => {
-                    audio.play().catch(err => {
-                        console.error(`音频源 ${index + 1} 播放失败:`, err);
-                        this.tryPlayAudio(sources, index + 1);
-                    });
+                const tryPlay = (audio, index) => {
+                    audio.oncanplaythrough = () => {
+                        if (!this.audioPlayed) {
+                            this.audioPlayed = true;
+                            this.currentAudio = audio;
+                            // 停止其他音频
+                            audioElements.forEach((a, i) => {
+                                if (i !== index) {
+                                    a.pause();
+                                    a.src = '';
+                                }
+                            });
+                            audio.play().catch(err => {
+                                console.error('音频播放失败:', err);
+                            });
+                        }
+                    };
+                    
+                    audio.onerror = () => {
+                        playedCount++;
+                        if (playedCount >= audioSources.length && !this.audioPlayed) {
+                            this.showToast('音频加载失败');
+                        }
+                    };
                 };
                 
-                audio.onerror = () => {
-                    console.error(`音频源 ${index + 1} 加载失败`);
-                    this.tryPlayAudio(sources, index + 1);
-                };
+                // 创建所有音频对象并开始加载
+                audioSources.forEach((url, index) => {
+                    const audio = new Audio(url);
+                    audioElements.push(audio);
+                    tryPlay(audio, index);
+                });
                 
-                // 3秒超时
+                // 2秒超时
                 setTimeout(() => {
-                    if (audio.readyState < 3) {
-                        console.error(`音频源 ${index + 1} 加载超时`);
-                        this.tryPlayAudio(sources, index + 1);
+                    if (!this.audioPlayed) {
+                        this.audioPlayed = true;
+                        this.showToast('音频加载超时');
                     }
-                }, 3000);
+                }, 2000);
             }
             
             // 显示轻提示
@@ -1482,6 +1536,10 @@ ability,əˈbɪləti,n. 能力,She has the ability...
 
             // 学习单词（从列表跳转）
             learnWord(index) {
+                // 保存当前滚动位置和学习的单词索引
+                this.lastLearnedIndex = index;
+                this.saveListScroll();
+                
                 this.currentLevel = this.listLevel;
                 const progress = this.getProgress();
                 progress[this.currentLevel].currentIndex = index;
@@ -1741,11 +1799,11 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     
                     if (Math.abs(diff) > 50) {
                         if (diff > 0) {
-                            // 向上滑动 - 返回上一词
-                            this.goToPrevWord();
+                            // 向上滑动 - 下一个单词
+                            this.markUnknown();
                         } else {
-                            // 向下滑动 - 标记认识
-                            this.markKnown();
+                            // 向下滑动 - 上一个单词
+                            this.goToPrevWord();
                         }
                     }
                 }, { passive: true });
@@ -1760,11 +1818,11 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     }, 300);
                     
                     if (e.deltaY > 0) {
-                        // 向下滚动 - 返回上一词
-                        this.goToPrevWord();
+                        // 向下滚动 - 下一个单词
+                        this.markUnknown();
                     } else if (e.deltaY < 0) {
-                        // 向上滚动 - 标记认识
-                        this.markKnown();
+                        // 向上滚动 - 上一个单词
+                        this.goToPrevWord();
                     }
                 }, { passive: true });
             }
