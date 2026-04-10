@@ -712,9 +712,10 @@
             <h2 class="page-title" style="font-size: 20px; margin-bottom: 16px;">单词列表</h2>
             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;" id="list-stats">共 0 个单词</p>
 
-            <div style="overflow-x: auto;">
-                <table class="word-table">
-                    <thead>
+            <div class="virtual-scroll-container" id="list-scroll-container" style="height: 400px; overflow-y: auto; position: relative;">
+                <div id="virtual-list-phantom" style="position: absolute; left: 0; top: 0; right: 0; z-index: -1;"></div>
+                <table class="word-table" style="position: relative;">
+                    <thead style="position: sticky; top: 0; background: var(--bg-primary); z-index: 10;">
                         <tr>
                             <th>单词</th>
                             <th>音标</th>
@@ -1127,17 +1128,14 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             
             // 恢复列表滚动位置
             restoreListScroll() {
-                const listPage = document.getElementById('list-page');
-                if (!listPage) return;
+                const container = document.getElementById('list-scroll-container');
+                if (!container) return;
                 
                 if (this.lastLearnedIndex !== undefined && this.lastLearnedIndex >= 0) {
                     // 滚动到之前学习的单词位置
-                    const rowHeight = 50; // 估算每行高度
-                    const scrollPosition = this.lastLearnedIndex * rowHeight;
-                    listPage.scrollTop = scrollPosition;
+                    const scrollPosition = this.lastLearnedIndex * this.rowHeight;
+                    container.scrollTop = scrollPosition;
                     console.log(`恢复滚动位置: 单词索引 ${this.lastLearnedIndex}, 滚动位置 ${scrollPosition}`);
-                } else if (this.listScrollTop) {
-                    listPage.scrollTop = this.listScrollTop;
                 }
             }
             
@@ -1341,6 +1339,13 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             
             // 备用方案：使用在线音频 API
             speakWithAudio(text, type) {
+                // 销毁之前的 Audio 对象
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.src = '';
+                    this.currentAudio = null;
+                }
+                
                 // 使用多个音频源，一个失败自动尝试下一个
                 const audioSources = [
                     // 方案1: 有道词典
@@ -1361,23 +1366,36 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     return;
                 }
                 
-                const audio = new Audio(sources[index]);
+                // 复用或创建新的 Audio 对象
+                if (!this.currentAudio) {
+                    this.currentAudio = new Audio();
+                }
                 
-                audio.oncanplaythrough = () => {
-                    audio.play().catch(err => {
+                this.currentAudio.src = sources[index];
+                
+                const onCanPlay = () => {
+                    this.currentAudio.play().catch(err => {
                         console.error(`音频源 ${index + 1} 播放失败:`, err);
                         this.tryPlayAudio(sources, index + 1);
                     });
                 };
                 
-                audio.onerror = () => {
+                const onError = () => {
                     console.error(`音频源 ${index + 1} 加载失败`);
                     this.tryPlayAudio(sources, index + 1);
                 };
                 
+                // 清理旧事件监听
+                this.currentAudio.removeEventListener('canplaythrough', onCanPlay);
+                this.currentAudio.removeEventListener('error', onError);
+                
+                // 添加新事件监听
+                this.currentAudio.addEventListener('canplaythrough', onCanPlay, { once: true });
+                this.currentAudio.addEventListener('error', onError, { once: true });
+                
                 // 3秒超时
                 setTimeout(() => {
-                    if (audio.readyState < 3) {
+                    if (this.currentAudio && this.currentAudio.readyState < 3) {
                         console.error(`音频源 ${index + 1} 加载超时`);
                         this.tryPlayAudio(sources, index + 1);
                     }
@@ -1427,18 +1445,39 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 document.getElementById('list-level-cet6').classList.toggle('active', this.listLevel === 'cet6');
                 document.getElementById('list-stats').textContent = `共 ${words.length} 个单词`;
                 
+                // 保存数据供虚拟滚动使用
+                this.listWords = words;
+                this.listKnownSet = knownSet;
+                this.listUnknownSet = unknownSet;
+                
                 const tbody = document.getElementById('word-table-body');
-                tbody.innerHTML = '';
+                const container = document.getElementById('list-scroll-container');
+                const phantom = document.getElementById('virtual-list-phantom');
                 
-                // 使用文档片段批量插入，减少重绘
-                const fragment = document.createDocumentFragment();
-                const batchSize = 50; // 每批处理50个
-                let currentIndex = 0;
+                // 设置行高和可视区域
+                this.rowHeight = 50;
+                this.visibleCount = Math.ceil(400 / this.rowHeight) + 2; // 可视区域 + 缓冲
+                this.totalHeight = words.length * this.rowHeight;
                 
-                const processBatch = () => {
-                    const endIndex = Math.min(currentIndex + batchSize, words.length);
+                // 设置占位高度
+                phantom.style.height = this.totalHeight + 'px';
+                
+                // 清理旧的事件监听
+                if (this.scrollHandler) {
+                    container.removeEventListener('scroll', this.scrollHandler);
+                }
+                
+                // 渲染可视区域的行
+                this.renderVisibleRows = () => {
+                    const scrollTop = container.scrollTop;
+                    const startIndex = Math.floor(scrollTop / this.rowHeight);
+                    const endIndex = Math.min(startIndex + this.visibleCount, words.length);
                     
-                    for (let i = currentIndex; i < endIndex; i++) {
+                    // 只渲染可视区域
+                    tbody.innerHTML = '';
+                    const fragment = document.createDocumentFragment();
+                    
+                    for (let i = startIndex; i < endIndex; i++) {
                         const word = words[i];
                         const row = document.createElement('tr');
                         
@@ -1452,8 +1491,8 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                             statusText = '✗ 不认识';
                         }
                         
-                        // 使用事件委托而不是每个行都绑定事件
                         row.dataset.index = i;
+                        row.style.height = this.rowHeight + 'px';
                         row.innerHTML = `
                             <td class="word-cell">${word.word}</td>
                             <td class="phonetic-cell">/${word.phonetic_uk}/</td>
@@ -1464,24 +1503,33 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                         fragment.appendChild(row);
                     }
                     
-                    currentIndex = endIndex;
-                    
-                    if (currentIndex < words.length) {
-                        // 还有数据，继续处理
-                        requestAnimationFrame(processBatch);
-                    } else {
-                        // 全部完成，一次性插入
-                        tbody.appendChild(fragment);
-                        this.bindListEvents(tbody);
-                        // 如果有回调函数，执行回调
-                        if (callback && typeof callback === 'function') {
-                            callback();
-                        }
+                    tbody.appendChild(fragment);
+                    this.bindListEvents(tbody);
+                };
+                
+                // 滚动事件节流
+                let ticking = false;
+                this.scrollHandler = () => {
+                    if (!ticking) {
+                        requestAnimationFrame(() => {
+                            this.renderVisibleRows();
+                            ticking = false;
+                        });
+                        ticking = true;
                     }
                 };
                 
-                // 开始处理
-                processBatch();
+                container.addEventListener('scroll', this.scrollHandler, { passive: true });
+                
+                // 初始渲染
+                this.renderVisibleRows();
+                
+                // 如果有回调函数，使用 RAF 延迟执行
+                if (callback && typeof callback === 'function') {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(callback);
+                    });
+                }
             }
             
             // 绑定列表事件（使用事件委托）
