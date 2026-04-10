@@ -1111,11 +1111,10 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             gotoList() {
                 this.showPage('list-page');
                 this.listLevel = this.currentLevel;
-                this.loadWordList();
-                // 恢复滚动位置
-                setTimeout(() => {
+                // 先加载列表，加载完成后再恢复滚动位置
+                this.loadWordList(() => {
                     this.restoreListScroll();
-                }, 100);
+                });
             }
             
             // 保存列表滚动位置
@@ -1123,26 +1122,22 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const listPage = document.getElementById('list-page');
                 if (listPage) {
                     this.listScrollTop = listPage.scrollTop;
-                    // 同时保存当前正在学习的单词索引
-                    this.lastLearnedIndex = this.currentIndex;
                 }
             }
             
             // 恢复列表滚动位置
             restoreListScroll() {
-                if (this.lastLearnedIndex !== undefined) {
+                const listPage = document.getElementById('list-page');
+                if (!listPage) return;
+                
+                if (this.lastLearnedIndex !== undefined && this.lastLearnedIndex >= 0) {
                     // 滚动到之前学习的单词位置
                     const rowHeight = 50; // 估算每行高度
-                    const listPage = document.getElementById('list-page');
-                    if (listPage) {
-                        const scrollPosition = this.lastLearnedIndex * rowHeight;
-                        listPage.scrollTop = scrollPosition;
-                    }
+                    const scrollPosition = this.lastLearnedIndex * rowHeight;
+                    listPage.scrollTop = scrollPosition;
+                    console.log(`恢复滚动位置: 单词索引 ${this.lastLearnedIndex}, 滚动位置 ${scrollPosition}`);
                 } else if (this.listScrollTop) {
-                    const listPage = document.getElementById('list-page');
-                    if (listPage) {
-                        listPage.scrollTop = this.listScrollTop;
-                    }
+                    listPage.scrollTop = this.listScrollTop;
                 }
             }
             
@@ -1304,11 +1299,89 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const text = word.word;
                 
                 if ('speechSynthesis' in window) {
+                    // 取消之前的语音（解决手机端重叠问题）
+                    window.speechSynthesis.cancel();
+                    
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = type === 'uk' ? 'en-GB' : 'en-US';
                     utterance.rate = 0.8;
-                    speechSynthesis.speak(utterance);
+                    utterance.volume = 1;
+                    utterance.pitch = 1;
+                    
+                    let hasPlayed = false;
+                    
+                    utterance.onstart = () => {
+                        hasPlayed = true;
+                    };
+                    
+                    // 错误处理
+                    utterance.onerror = (event) => {
+                        console.error('语音播放错误:', event.error);
+                        // 如果播放失败，尝试备用方案
+                        if (!hasPlayed) {
+                            this.speakWithAudio(text, type);
+                        }
+                    };
+                    
+                    // 手机端需要延迟一点才能播放
+                    setTimeout(() => {
+                        window.speechSynthesis.speak(utterance);
+                        // 500ms 后检查是否播放成功
+                        setTimeout(() => {
+                            if (!hasPlayed) {
+                                this.speakWithAudio(text, type);
+                            }
+                        }, 500);
+                    }, 50);
+                } else {
+                    // 不支持 Web Speech API，直接使用备用方案
+                    this.speakWithAudio(text, type);
                 }
+            }
+            
+            // 备用方案：使用在线音频 API
+            speakWithAudio(text, type) {
+                // 使用多个音频源，一个失败自动尝试下一个
+                const audioSources = [
+                    // 方案1: 有道词典
+                    `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`,
+                    // 方案2: 百度翻译
+                    `https://fanyi.baidu.com/gettts?lan=${type === 'uk' ? 'uk' : 'en'}&text=${encodeURIComponent(text)}&spd=3&source=web`,
+                    // 方案3: 必应词典
+                    `https://www.bing.com/tspeak?&format=audio/mp3&language=${type === 'uk' ? 'en-GB' : 'en-US'}&IG=0&IID=translator.5023&text=${encodeURIComponent(text)}`
+                ];
+                
+                this.tryPlayAudio(audioSources, 0);
+            }
+            
+            // 尝试播放音频，失败则尝试下一个源
+            tryPlayAudio(sources, index) {
+                if (index >= sources.length) {
+                    this.showToast('音频播放失败，请检查网络连接');
+                    return;
+                }
+                
+                const audio = new Audio(sources[index]);
+                
+                audio.oncanplaythrough = () => {
+                    audio.play().catch(err => {
+                        console.error(`音频源 ${index + 1} 播放失败:`, err);
+                        this.tryPlayAudio(sources, index + 1);
+                    });
+                };
+                
+                audio.onerror = () => {
+                    console.error(`音频源 ${index + 1} 加载失败`);
+                    this.tryPlayAudio(sources, index + 1);
+                };
+                
+                // 3秒超时
+                setTimeout(() => {
+                    if (audio.readyState < 3) {
+                        console.error(`音频源 ${index + 1} 加载超时`);
+                        this.tryPlayAudio(sources, index + 1);
+                    }
+                }, 3000);
             }
             
             // 显示轻提示
@@ -1343,7 +1416,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             }
 
             // 加载单词列表 - 使用虚拟滚动优化性能
-            loadWordList() {
+            loadWordList(callback) {
                 const words = this.getWords(this.listLevel);
                 const progress = this.getProgress();
                 const levelProgress = progress[this.listLevel] || { known: [], unknown: [] };
@@ -1400,6 +1473,10 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                         // 全部完成，一次性插入
                         tbody.appendChild(fragment);
                         this.bindListEvents(tbody);
+                        // 如果有回调函数，执行回调
+                        if (callback && typeof callback === 'function') {
+                            callback();
+                        }
                     }
                 };
                 
