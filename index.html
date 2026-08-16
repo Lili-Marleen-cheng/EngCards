@@ -898,6 +898,9 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.knownIndices = new Set();
                 this.unknownIndices = new Set();
                 this.confirmCallback = null;
+                this.audioToken = 0;
+                this.audioTimer = null;
+                this.audioResolved = false;
                 this.init();
             }
 
@@ -1292,113 +1295,146 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             speak(type) {
                 const words = this.getWords(this.currentLevel);
                 if (this.currentIndex >= words.length) return;
-                
+
                 const word = words[this.currentIndex];
                 const text = word.word;
-                
-                if ('speechSynthesis' in window) {
-                    // 取消之前的语音（解决手机端重叠问题）
-                    window.speechSynthesis.cancel();
-                    
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = type === 'uk' ? 'en-GB' : 'en-US';
-                    utterance.rate = 0.8;
-                    utterance.volume = 1;
-                    utterance.pitch = 1;
-                    
-                    let hasPlayed = false;
-                    
-                    utterance.onstart = () => {
-                        hasPlayed = true;
-                    };
-                    
-                    // 错误处理
-                    utterance.onerror = (event) => {
-                        console.error('语音播放错误:', event.error);
-                        // 如果播放失败，尝试备用方案
-                        if (!hasPlayed) {
-                            this.speakWithAudio(text, type);
-                        }
-                    };
-                    
-                    // 手机端需要延迟一点才能播放
-                    setTimeout(() => {
-                        window.speechSynthesis.speak(utterance);
-                        // 500ms 后检查是否播放成功
-                        setTimeout(() => {
-                            if (!hasPlayed) {
-                                this.speakWithAudio(text, type);
-                            }
-                        }, 500);
-                    }, 50);
-                } else {
-                    // 不支持 Web Speech API，直接使用备用方案
-                    this.speakWithAudio(text, type);
+
+                // 新一轮播放：让上一轮所有异步回调作废，并停掉上一轮在线音频
+                const token = ++this.audioToken;
+                this.audioResolved = false;
+                if (this.audioTimer) {
+                    clearTimeout(this.audioTimer);
+                    this.audioTimer = null;
                 }
-            }
-            
-            // 备用方案：使用在线音频 API
-            speakWithAudio(text, type) {
-                // 销毁之前的 Audio 对象
                 if (this.currentAudio) {
                     this.currentAudio.pause();
                     this.currentAudio.src = '';
                     this.currentAudio = null;
                 }
-                
-                // 使用多个音频源，一个失败自动尝试下一个
+
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = type === 'uk' ? 'en-GB' : 'en-US';
+                    utterance.rate = 0.8;
+                    utterance.volume = 1;
+                    utterance.pitch = 1;
+
+                    let ttsAbandoned = false;
+
+                    utterance.onstart = () => {
+                        if (token !== this.audioToken) return;
+                        if (ttsAbandoned || this.audioResolved) {
+                            window.speechSynthesis.cancel();
+                            return;
+                        }
+                        this.audioResolved = true;
+                    };
+
+                    utterance.onerror = (event) => {
+                        if (token !== this.audioToken || this.audioResolved) return;
+                        console.error('语音播放错误:', event.error);
+                        if (!ttsAbandoned) {
+                            ttsAbandoned = true;
+                            this.speakWithAudio(text, type, token);
+                        }
+                    };
+
+                    setTimeout(() => {
+                        window.speechSynthesis.speak(utterance);
+                    }, 50);
+
+                    // 看门狗：只触发一次；触发后即使 TTS 启动也会被 onstart 取消
+                    setTimeout(() => {
+                        if (token !== this.audioToken || this.audioResolved) return;
+                        if (!ttsAbandoned) {
+                            ttsAbandoned = true;
+                            this.speakWithAudio(text, type, token);
+                        }
+                    }, 1200);
+                } else {
+                    this.speakWithAudio(text, type, token);
+                }
+            }
+
+            // 备用方案：使用在线音频 API
+            speakWithAudio(text, type, token) {
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio.src = '';
+                    this.currentAudio = null;
+                }
+
                 const audioSources = [
-                    // 方案1: 有道词典
                     `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&type=${type === 'uk' ? '1' : '2'}`,
-                    // 方案2: 百度翻译
                     `https://fanyi.baidu.com/gettts?lan=${type === 'uk' ? 'uk' : 'en'}&text=${encodeURIComponent(text)}&spd=3&source=web`,
-                    // 方案3: 必应词典
                     `https://www.bing.com/tspeak?&format=audio/mp3&language=${type === 'uk' ? 'en-GB' : 'en-US'}&IG=0&IID=translator.5023&text=${encodeURIComponent(text)}`
                 ];
-                
-                this.tryPlayAudio(audioSources, 0);
+
+                this.tryPlayAudio(audioSources, 0, token);
             }
-            
+
             // 尝试播放音频，失败则尝试下一个源
-            tryPlayAudio(sources, index) {
+            tryPlayAudio(sources, index, token) {
+                if (token !== this.audioToken || this.audioResolved) return;
+
                 if (index >= sources.length) {
                     this.showToast('音频播放失败，请检查网络连接');
                     return;
                 }
-                
-                // 复用或创建新的 Audio 对象
+
                 if (!this.currentAudio) {
                     this.currentAudio = new Audio();
                 }
-                
-                this.currentAudio.src = sources[index];
-                
+                const audio = this.currentAudio;
+
+                if (this.audioTimer) {
+                    clearTimeout(this.audioTimer);
+                    this.audioTimer = null;
+                }
+
+                let failed = false;
+                const advance = () => {
+                    if (failed || token !== this.audioToken) return;
+                    failed = true;
+                    this.tryPlayAudio(sources, index + 1, token);
+                };
+
                 const onCanPlay = () => {
-                    this.currentAudio.play().catch(err => {
+                    if (failed || token !== this.audioToken || this.audioResolved) return;
+                    this.audioResolved = true;
+                    if (this.audioTimer) {
+                        clearTimeout(this.audioTimer);
+                        this.audioTimer = null;
+                    }
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                    }
+                    audio.play().catch(err => {
                         console.error(`音频源 ${index + 1} 播放失败:`, err);
-                        this.tryPlayAudio(sources, index + 1);
+                        this.audioResolved = false;
+                        advance();
                     });
                 };
-                
+
                 const onError = () => {
                     console.error(`音频源 ${index + 1} 加载失败`);
-                    this.tryPlayAudio(sources, index + 1);
+                    advance();
                 };
-                
-                // 清理旧事件监听
-                this.currentAudio.removeEventListener('canplaythrough', onCanPlay);
-                this.currentAudio.removeEventListener('error', onError);
-                
-                // 添加新事件监听
-                this.currentAudio.addEventListener('canplaythrough', onCanPlay, { once: true });
-                this.currentAudio.addEventListener('error', onError, { once: true });
-                
-                // 3秒超时
-                setTimeout(() => {
-                    if (this.currentAudio && this.currentAudio.readyState < 3) {
-                        console.error(`音频源 ${index + 1} 加载超时`);
-                        this.tryPlayAudio(sources, index + 1);
-                    }
+
+                audio.removeEventListener('canplaythrough', onCanPlay);
+                audio.removeEventListener('error', onError);
+                audio.addEventListener('canplaythrough', onCanPlay, { once: true });
+                audio.addEventListener('error', onError, { once: true });
+
+                audio.src = sources[index];
+
+                this.audioTimer = setTimeout(() => {
+                    this.audioTimer = null;
+                    if (token !== this.audioToken || this.audioResolved) return;
+                    console.error(`音频源 ${index + 1} 加载超时`);
+                    advance();
                 }, 3000);
             }
             
