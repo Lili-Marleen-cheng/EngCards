@@ -722,7 +722,6 @@
             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 16px;" id="list-stats">共 0 个单词</p>
 
             <div class="virtual-scroll-container" id="list-scroll-container" style="height: 400px; overflow-y: auto; position: relative;">
-                <div id="virtual-list-phantom" style="position: absolute; left: 0; top: 0; right: 0; z-index: -1;"></div>
                 <table class="word-table" style="position: relative;">
                     <thead style="position: sticky; top: 0; background: var(--bg-primary); z-index: 10;">
                         <tr>
@@ -1538,99 +1537,48 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 }, 2000);
             }
 
-            // 加载单词列表 - 使用虚拟滚动优化性能
+            // 加载单词列表
             loadWordList(callback) {
                 const words = this.getWords(this.listLevel);
                 const progress = this.getProgress();
                 const levelProgress = progress[this.listLevel] || { known: [], unknown: [] };
                 const knownSet = new Set(levelProgress.known || []);
                 const unknownSet = new Set(levelProgress.unknown || []);
-                
+
                 document.getElementById('list-level-cet4').classList.toggle('active', this.listLevel === 'cet4');
                 document.getElementById('list-level-cet6').classList.toggle('active', this.listLevel === 'cet6');
                 document.getElementById('list-level-custom').classList.toggle('active', this.listLevel === 'custom');
                 document.getElementById('list-stats').textContent = `共 ${words.length} 个单词`;
-                
-                // 保存数据供虚拟滚动使用
-                this.listWords = words;
-                this.listKnownSet = knownSet;
-                this.listUnknownSet = unknownSet;
-                
-                const tbody = document.getElementById('word-table-body');
-                const container = document.getElementById('list-scroll-container');
-                const phantom = document.getElementById('virtual-list-phantom');
-                
-                // 设置行高和可视区域
+
                 this.rowHeight = 50;
-                this.visibleCount = Math.ceil(400 / this.rowHeight) + 2; // 可视区域 + 缓冲
-                this.totalHeight = words.length * this.rowHeight;
-                
-                // 设置占位高度
-                phantom.style.height = this.totalHeight + 'px';
-                
-                // 清理旧的事件监听
-                if (this.scrollHandler) {
-                    container.removeEventListener('scroll', this.scrollHandler);
-                }
-                
-                // 渲染可视区域的行
-                this.renderVisibleRows = () => {
-                    const scrollTop = container.scrollTop;
-                    const startIndex = Math.floor(scrollTop / this.rowHeight);
-                    const endIndex = Math.min(startIndex + this.visibleCount, words.length);
-                    
-                    // 只渲染可视区域
-                    tbody.innerHTML = '';
-                    const fragment = document.createDocumentFragment();
-                    
-                    for (let i = startIndex; i < endIndex; i++) {
-                        const word = words[i];
-                        const row = document.createElement('tr');
-                        
-                        let statusClass = 'status-unlearned';
-                        let statusText = '○ 未学习';
-                        if (knownSet.has(i)) {
-                            statusClass = 'status-known';
-                            statusText = '✓ 已认识';
-                        } else if (unknownSet.has(i)) {
-                            statusClass = 'status-unknown';
-                            statusText = '✗ 不认识';
-                        }
-                        
-                        row.dataset.index = i;
-                        row.style.height = this.rowHeight + 'px';
-                        row.innerHTML = `
+
+                const tbody = document.getElementById('word-table-body');
+                const rowsHtml = [];
+
+                words.forEach((word, i) => {
+                    let statusClass = 'status-unlearned';
+                    let statusText = '○ 未学习';
+                    if (knownSet.has(i)) {
+                        statusClass = 'status-known';
+                        statusText = '✓ 已认识';
+                    } else if (unknownSet.has(i)) {
+                        statusClass = 'status-unknown';
+                        statusText = '✗ 不认识';
+                    }
+
+                    rowsHtml.push(`
+                        <tr data-index="${i}" style="height: ${this.rowHeight}px">
                             <td class="word-cell">${word.word}</td>
                             <td class="phonetic-cell">/${word.phonetic_uk}/</td>
                             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                             <td><button class="learn-btn" data-index="${i}">学习</button></td>
-                        `;
-                        
-                        fragment.appendChild(row);
-                    }
-                    
-                    tbody.appendChild(fragment);
-                    this.bindListEvents(tbody);
-                };
-                
-                // 滚动事件节流
-                let ticking = false;
-                this.scrollHandler = () => {
-                    if (!ticking) {
-                        requestAnimationFrame(() => {
-                            this.renderVisibleRows();
-                            ticking = false;
-                        });
-                        ticking = true;
-                    }
-                };
-                
-                container.addEventListener('scroll', this.scrollHandler, { passive: true });
-                
-                // 初始渲染
-                this.renderVisibleRows();
-                
-                // 如果有回调函数，使用 RAF 延迟执行
+                        </tr>
+                    `);
+                });
+
+                tbody.innerHTML = rowsHtml.join('');
+                this.bindListEvents(tbody);
+
                 if (callback && typeof callback === 'function') {
                     requestAnimationFrame(() => {
                         requestAnimationFrame(callback);
