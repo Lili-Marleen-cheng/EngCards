@@ -633,7 +633,7 @@
             </div>
 
             <button class="btn btn-secondary btn-block" onclick="app.showImportModal()">导入词库</button>
-            <button class="btn btn-secondary btn-block" style="margin-top: 12px;" onclick="app.showClearLibraryModal()">清空自定义词库</button>
+            <button class="btn btn-secondary btn-block" style="margin-top: 12px;" onclick="app.showClearLibraryModal()">清空词库</button>
 
             <div class="card" style="margin-top: 24px;">
                 <div class="setting-item">
@@ -787,6 +787,10 @@
                     <span class="setting-label">清空不认识单词</span>
                     <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.showClearModal()">清空</button>
                 </div>
+                <div class="setting-item" style="border-bottom: 1px solid var(--border-color);">
+                    <span class="setting-label">清空词库</span>
+                    <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.showClearLibraryModal()">清空</button>
+                </div>
                 <div class="setting-item">
                     <span class="setting-label">导出词库</span>
                     <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="app.exportWords()">导出</button>
@@ -851,6 +855,27 @@ ability,əˈbɪləti,n. 能力,She has the ability...
         </div>
     </div>
 
+    <!-- 清空词库模态框 -->
+    <div class="modal" id="clear-library-modal">
+        <div class="modal-content">
+            <div class="modal-title">清空词库</div>
+            <div class="modal-body">
+                <p style="margin-bottom: 12px; font-size: 14px; color: var(--text-secondary);">
+                    选择要清空的词库。清空后该词库会变为 0 个单词，并重置对应的学习进度和不认识列表。
+                </p>
+                <div class="level-selector">
+                    <button class="level-btn" id="clear-level-cet4" onclick="app.setClearLevel('cet4')">四级</button>
+                    <button class="level-btn" id="clear-level-cet6" onclick="app.setClearLevel('cet6')">六级</button>
+                    <button class="level-btn" id="clear-level-custom" onclick="app.setClearLevel('custom')">自定义</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.closeClearLibraryModal()">取消</button>
+                <button class="btn btn-danger" onclick="app.executeClearLibrary()">清空</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 确认模态框 -->
     <div class="modal" id="confirm-modal">
         <div class="modal-content">
@@ -910,6 +935,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 this.listLevel = 'cet4';
                 this.importLevel = 'custom';
                 this.importMode = 'replace';
+                this.clearLevel = 'custom';
                 this.currentIndex = 0;
                 this.knownIndices = new Set();
                 this.unknownIndices = new Set();
@@ -1901,26 +1927,47 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 );
             }
 
-            // 显示清空自定义词库确认
+            // 显示清空词库弹窗
             showClearLibraryModal() {
-                this.showConfirmModal(
-                    '清空自定义词库',
-                    '将把自定义词库清空到 0 个单词，并重置其学习进度和不认识列表。此操作不可恢复，建议先导出备份。',
-                    () => {
-                        this.clearCustomLibrary();
-                        alert('自定义词库已清空');
-                    }
-                );
+                document.getElementById('clear-library-modal').classList.add('active');
+                this.updateClearLevelButtons();
             }
 
-            // 清空自定义词库
-            clearCustomLibrary() {
-                this.saveWords('custom', []);
+            // 关闭清空词库弹窗
+            closeClearLibraryModal() {
+                document.getElementById('clear-library-modal').classList.remove('active');
+            }
+
+            // 设置要清空的级别
+            setClearLevel(level) {
+                this.clearLevel = level;
+                this.updateClearLevelButtons();
+            }
+
+            // 更新清空级别按钮状态
+            updateClearLevelButtons() {
+                document.getElementById('clear-level-cet4').classList.toggle('active', this.clearLevel === 'cet4');
+                document.getElementById('clear-level-cet6').classList.toggle('active', this.clearLevel === 'cet6');
+                document.getElementById('clear-level-custom').classList.toggle('active', this.clearLevel === 'custom');
+            }
+
+            // 执行清空
+            executeClearLibrary() {
+                const level = this.clearLevel;
+                this.clearLibraryLevel(level);
+                this.closeClearLibraryModal();
+                const levelNames = { cet4: '四级', cet6: '六级', custom: '自定义' };
+                alert(`${levelNames[level] || ''}词库已清空`);
+            }
+
+            // 清空指定级别词库，并重置对应进度和不认识列表
+            clearLibraryLevel(level) {
+                this.saveWords(level, []);
                 const progress = this.getProgress();
-                progress.custom = { currentIndex: 0, known: [], unknown: [] };
+                progress[level] = { currentIndex: 0, known: [], unknown: [] };
                 this.saveProgress(progress);
                 const unrecognized = this.getUnrecognized();
-                unrecognized.custom = [];
+                unrecognized[level] = [];
                 this.saveUnrecognized(unrecognized);
                 this.updateHomeStats();
                 this.loadUnrecognizedList();
