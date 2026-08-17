@@ -633,6 +633,7 @@
             </div>
 
             <button class="btn btn-secondary btn-block" onclick="app.showImportModal()">导入词库</button>
+            <button class="btn btn-secondary btn-block" style="margin-top: 12px;" onclick="app.showClearLibraryModal()">清空自定义词库</button>
 
             <div class="card" style="margin-top: 24px;">
                 <div class="setting-item">
@@ -647,6 +648,7 @@
                     <div class="level-selector" style="margin: 0;">
                         <button class="level-btn" id="level-cet4" onclick="app.setLevel('cet4')">四级</button>
                         <button class="level-btn" id="level-cet6" onclick="app.setLevel('cet6')">六级</button>
+                        <button class="level-btn" id="level-custom" onclick="app.setLevel('custom')">自定义</button>
                     </div>
                 </div>
             </div>
@@ -697,6 +699,12 @@
                 <button class="btn btn-primary btn-block" onclick="app.resetProgress()">重新开始</button>
                 <button class="btn btn-secondary btn-block" onclick="app.goBackFromCard()" style="margin-top: 12px;">返回</button>
             </div>
+
+            <div id="empty-library-message" class="completion-message" style="display: none;">
+                <h2>📭 词库为空</h2>
+                <p>当前级别还没有单词，请先导入词库</p>
+                <button class="btn btn-primary btn-block" onclick="app.gotoHome()">返回首页</button>
+            </div>
         </div>
 
         <!-- 单词列表页 -->
@@ -706,6 +714,7 @@
                 <div class="level-selector" style="margin: 0;">
                     <button class="level-btn" id="list-level-cet4" onclick="app.setListLevel('cet4')">四级</button>
                     <button class="level-btn" id="list-level-cet6" onclick="app.setListLevel('cet6')">六级</button>
+                    <button class="level-btn" id="list-level-custom" onclick="app.setListLevel('custom')">自定义</button>
                 </div>
             </div>
 
@@ -824,9 +833,15 @@ ability,əˈbɪləti,n. 能力,She has the ability...
 
 或JSON格式：
 [{&quot;word&quot;:&quot;abandon&quot;,&quot;phonetic_uk&quot;:&quot;...&quot;,...}]"></textarea>
+                <p style="margin-top: 12px; margin-bottom: 8px; font-size: 14px; color: var(--text-secondary);">导入方式</p>
+                <div class="level-selector" style="margin: 0;">
+                    <button class="level-btn" id="import-mode-replace" onclick="app.setImportMode('replace')">替换（清空后导入）</button>
+                    <button class="level-btn" id="import-mode-merge" onclick="app.setImportMode('merge')">合并</button>
+                </div>
                 <div class="level-selector" style="margin-top: 12px;">
                     <button class="level-btn" id="import-level-cet4" onclick="app.setImportLevel('cet4')">四级</button>
                     <button class="level-btn" id="import-level-cet6" onclick="app.setImportLevel('cet6')">六级</button>
+                    <button class="level-btn" id="import-level-custom" onclick="app.setImportLevel('custom')">自定义</button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -893,7 +908,8 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             constructor() {
                 this.currentLevel = 'cet4';
                 this.listLevel = 'cet4';
-                this.importLevel = 'cet4';
+                this.importLevel = 'custom';
+                this.importMode = 'replace';
                 this.currentIndex = 0;
                 this.knownIndices = new Set();
                 this.unknownIndices = new Set();
@@ -974,17 +990,33 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 if (!localStorage.getItem('cet6_words')) {
                     localStorage.setItem('cet6_words', JSON.stringify(DEFAULT_CET6_WORDS));
                 }
-                // 初始化学习进度
-                if (!localStorage.getItem('progress')) {
-                    const progress = {
-                        cet4: { currentIndex: 0, known: [], unknown: [] },
-                        cet6: { currentIndex: 0, known: [], unknown: [] }
-                    };
-                    localStorage.setItem('progress', JSON.stringify(progress));
+                // 初始化自定义词库（空库，由用户自主管理）
+                if (!localStorage.getItem('custom_words')) {
+                    localStorage.setItem('custom_words', JSON.stringify([]));
                 }
-                // 初始化不认识单词列表
-                if (!localStorage.getItem('unrecognized')) {
-                    localStorage.setItem('unrecognized', JSON.stringify({ cet4: [], cet6: [] }));
+                // 初始化学习进度（确保四级/六级/自定义三个级别都存在）
+                const progress = this.getProgress();
+                let progressChanged = false;
+                ['cet4', 'cet6', 'custom'].forEach(level => {
+                    if (!progress[level]) {
+                        progress[level] = { currentIndex: 0, known: [], unknown: [] };
+                        progressChanged = true;
+                    }
+                });
+                if (progressChanged) {
+                    this.saveProgress(progress);
+                }
+                // 初始化不认识单词列表（确保四级/六级/自定义三个级别都存在）
+                const unrecognized = this.getUnrecognized();
+                let unrecognizedChanged = false;
+                ['cet4', 'cet6', 'custom'].forEach(level => {
+                    if (!Array.isArray(unrecognized[level])) {
+                        unrecognized[level] = [];
+                        unrecognizedChanged = true;
+                    }
+                });
+                if (unrecognizedChanged) {
+                    this.saveUnrecognized(unrecognized);
                 }
                 // 初始化每日统计
                 if (!localStorage.getItem('dailyStats')) {
@@ -1008,7 +1040,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             // 获取学习进度
             getProgress() {
                 const data = localStorage.getItem('progress');
-                return data ? JSON.parse(data) : { cet4: { currentIndex: 0, known: [], unknown: [] }, cet6: { currentIndex: 0, known: [], unknown: [] } };
+                return data ? JSON.parse(data) : { cet4: { currentIndex: 0, known: [], unknown: [] }, cet6: { currentIndex: 0, known: [], unknown: [] }, custom: { currentIndex: 0, known: [], unknown: [] } };
             }
 
             // 保存学习进度
@@ -1019,7 +1051,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             // 获取不认识单词列表
             getUnrecognized() {
                 const data = localStorage.getItem('unrecognized');
-                return data ? JSON.parse(data) : { cet4: [], cet6: [] };
+                return data ? JSON.parse(data) : { cet4: [], cet6: [], custom: [] };
             }
 
             // 保存不认识单词列表
@@ -1063,13 +1095,14 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 document.getElementById('today-count').textContent = todayCount;
                 document.getElementById('total-count').textContent = words.length;
                 document.getElementById('unrecognized-count').textContent = 
-                    (unrecognized.cet4?.length || 0) + (unrecognized.cet6?.length || 0);
+                    (unrecognized.cet4?.length || 0) + (unrecognized.cet6?.length || 0) + (unrecognized.custom?.length || 0);
             }
 
             // 更新级别按钮状态
             updateLevelButtons() {
                 document.getElementById('level-cet4').classList.toggle('active', this.currentLevel === 'cet4');
                 document.getElementById('level-cet6').classList.toggle('active', this.currentLevel === 'cet6');
+                document.getElementById('level-custom').classList.toggle('active', this.currentLevel === 'custom');
             }
 
             // 更新夜间模式开关
@@ -1181,13 +1214,15 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             loadCard() {
                 const words = this.getWords(this.currentLevel);
                 const progress = this.getProgress();
-                const levelProgress = progress[this.currentLevel];
+                const levelProgress = progress[this.currentLevel] || { currentIndex: 0, known: [], unknown: [] };
                 
                 this.currentIndex = levelProgress.currentIndex || 0;
                 this.knownIndices = new Set(levelProgress.known || []);
                 this.unknownIndices = new Set(levelProgress.unknown || []);
 
-                if (this.currentIndex >= words.length) {
+                if (words.length === 0) {
+                    this.showEmptyLibrary();
+                } else if (this.currentIndex >= words.length) {
                     this.showCompletion();
                 } else {
                     this.showWordCard();
@@ -1201,6 +1236,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 
                 document.getElementById('word-card-content').style.display = 'block';
                 document.getElementById('completion-message').style.display = 'none';
+                document.getElementById('empty-library-message').style.display = 'none';
                 
                 document.getElementById('word-text').textContent = word.word;
                 document.getElementById('phonetic-uk').textContent = '/' + word.phonetic_uk + '/';
@@ -1212,6 +1248,13 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             showCompletion() {
                 document.getElementById('word-card-content').style.display = 'none';
                 document.getElementById('completion-message').style.display = 'block';
+                document.getElementById('empty-library-message').style.display = 'none';
+            }
+
+            showEmptyLibrary() {
+                document.getElementById('word-card-content').style.display = 'none';
+                document.getElementById('completion-message').style.display = 'none';
+                document.getElementById('empty-library-message').style.display = 'block';
             }
 
             updateCardProgress() {
@@ -1479,6 +1522,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 
                 document.getElementById('list-level-cet4').classList.toggle('active', this.listLevel === 'cet4');
                 document.getElementById('list-level-cet6').classList.toggle('active', this.listLevel === 'cet6');
+                document.getElementById('list-level-custom').classList.toggle('active', this.listLevel === 'custom');
                 document.getElementById('list-stats').textContent = `共 ${words.length} 个单词`;
                 
                 // 保存数据供虚拟滚动使用
@@ -1613,7 +1657,8 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                 const unrecognized = this.getUnrecognized();
                 const allUnrecognized = [
                     ...(unrecognized.cet4 || []).map(w => ({ ...w, level: 'cet4' })),
-                    ...(unrecognized.cet6 || []).map(w => ({ ...w, level: 'cet6' }))
+                    ...(unrecognized.cet6 || []).map(w => ({ ...w, level: 'cet6' })),
+                    ...(unrecognized.custom || []).map(w => ({ ...w, level: 'custom' }))
                 ];
                 
                 const content = document.getElementById('unrecognized-content');
@@ -1663,7 +1708,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
 
             // 清空不认识单词
             clearUnrecognized() {
-                this.saveUnrecognized({ cet4: [], cet6: [] });
+                this.saveUnrecognized({ cet4: [], cet6: [], custom: [] });
                 this.loadUnrecognizedList();
                 this.updateHomeStats();
             }
@@ -1672,6 +1717,7 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             showImportModal() {
                 document.getElementById('import-modal').classList.add('active');
                 this.updateImportLevelButtons();
+                this.updateImportModeButtons();
             }
 
             closeImportModal() {
@@ -1687,6 +1733,17 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             updateImportLevelButtons() {
                 document.getElementById('import-level-cet4').classList.toggle('active', this.importLevel === 'cet4');
                 document.getElementById('import-level-cet6').classList.toggle('active', this.importLevel === 'cet6');
+                document.getElementById('import-level-custom').classList.toggle('active', this.importLevel === 'custom');
+            }
+
+            setImportMode(mode) {
+                this.importMode = mode;
+                this.updateImportModeButtons();
+            }
+
+            updateImportModeButtons() {
+                document.getElementById('import-mode-replace').classList.toggle('active', this.importMode === 'replace');
+                document.getElementById('import-mode-merge').classList.toggle('active', this.importMode === 'merge');
             }
 
             // 导入单词
@@ -1715,9 +1772,12 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     return;
                 }
 
-                // 合并到现有词库
-                const existingWords = this.getWords(this.importLevel);
-                const wordMap = new Map(existingWords.map(w => [w.word, w]));
+                const isReplace = this.importMode === 'replace';
+                const level = this.importLevel;
+
+                // 替换模式从空库开始，合并模式在现有词库上追加
+                const baseWords = isReplace ? [] : this.getWords(level);
+                const wordMap = new Map(baseWords.map(w => [w.word, w]));
                 
                 words.forEach(word => {
                     if (word.word) {
@@ -1731,10 +1791,22 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                     }
                 });
 
-                this.saveWords(this.importLevel, Array.from(wordMap.values()));
+                this.saveWords(level, Array.from(wordMap.values()));
+
+                // 替换等于清空重导，旧进度和旧不认识列表都已失效，一并重置
+                if (isReplace) {
+                    const progress = this.getProgress();
+                    progress[level] = { currentIndex: 0, known: [], unknown: [] };
+                    this.saveProgress(progress);
+
+                    const unrecognized = this.getUnrecognized();
+                    unrecognized[level] = [];
+                    this.saveUnrecognized(unrecognized);
+                }
+
                 this.closeImportModal();
                 this.updateHomeStats();
-                alert(`成功导入 ${words.length} 个单词`);
+                alert(`成功${isReplace ? '替换' : '导入'} ${wordMap.size} 个单词`);
             }
 
             // 解析CSV格式
@@ -1765,9 +1837,11 @@ ability,əˈbɪləti,n. 能力,She has the ability...
             exportWords() {
                 const cet4Words = this.getWords('cet4');
                 const cet6Words = this.getWords('cet6');
+                const customWords = this.getWords('custom');
                 const data = {
                     cet4: cet4Words,
                     cet6: cet6Words,
+                    custom: customWords,
                     exportDate: new Date().toISOString()
                 };
                 
@@ -1825,6 +1899,31 @@ ability,əˈbɪləti,n. 能力,She has the ability...
                         alert('不认识单词列表已清空');
                     }
                 );
+            }
+
+            // 显示清空自定义词库确认
+            showClearLibraryModal() {
+                this.showConfirmModal(
+                    '清空自定义词库',
+                    '将把自定义词库清空到 0 个单词，并重置其学习进度和不认识列表。此操作不可恢复，建议先导出备份。',
+                    () => {
+                        this.clearCustomLibrary();
+                        alert('自定义词库已清空');
+                    }
+                );
+            }
+
+            // 清空自定义词库
+            clearCustomLibrary() {
+                this.saveWords('custom', []);
+                const progress = this.getProgress();
+                progress.custom = { currentIndex: 0, known: [], unknown: [] };
+                this.saveProgress(progress);
+                const unrecognized = this.getUnrecognized();
+                unrecognized.custom = [];
+                this.saveUnrecognized(unrecognized);
+                this.updateHomeStats();
+                this.loadUnrecognizedList();
             }
 
             // 设置事件监听
